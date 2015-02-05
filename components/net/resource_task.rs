@@ -97,7 +97,7 @@ pub struct ResourceCORSData {
 }
 
 /// Metadata about a loaded resource, such as is obtained from HTTP headers.
-#[deriving(Clone)]
+#[derive(Clone)]
 pub struct Metadata {
     /// Final URL after redirects.
     pub final_url: Url,
@@ -168,7 +168,7 @@ pub struct ResponseSenders {
 }
 
 /// Messages sent in response to a `Load` message
-#[derive(PartialEq,Show)]
+#[derive(PartialEq,Debug)]
 pub enum ProgressMsg {
     /// Binary data - there may be multiple of these
     Payload(Vec<u8>),
