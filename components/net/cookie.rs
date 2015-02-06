@@ -121,7 +121,7 @@ impl Cookie {
         }
         if string.ends_with(domain_string)
             && string.char_at(string.len()-domain_string.len()-1) == '.'
-            && string.parse::<IpAddr>().is_ok() {
+            && string.parse::<IpAddr>().is_err() {
             return true;
         }
         false
