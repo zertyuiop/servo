@@ -2,3 +2,6 @@ paths = ["../../support/android-rs-glue"]
 
 [target.arm-linux-androideabi]
 linker = "../../support/android-rs-glue/apk-builder/target/apk-builder"
+
+[target.arm-linux-androideabi.openssl-sys]
+rustc-flags = "-L native=support/android/openssl-1.0.1k -l crypto:static -l ssl:static"
