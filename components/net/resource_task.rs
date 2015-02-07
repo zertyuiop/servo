@@ -26,14 +26,14 @@ use std::borrow::{ToOwned, IntoCow};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thunk::Invoke;
 use std::collections::HashMap;
-use std::io::{BufferedReader, File};
+use std::old_io::{BufferedReader, File};
 use std::mem;
 use std::os;
 
 #[cfg(test)]
-use std::io::{Listener, Acceptor, TimedOut};
+use std::old_io::{Listener, Acceptor, TimedOut};
 #[cfg(test)]
-use std::io::net::tcp::TcpListener;
+use std::old_io::net::tcp::TcpListener;
 
 static mut HOST_TABLE: Option<*mut HashMap<String, String>> = None;
 
