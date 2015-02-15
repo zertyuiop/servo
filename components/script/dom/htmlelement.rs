@@ -200,13 +200,13 @@ impl<'a> VirtualMethods for JSRef<'a, HTMLElement> {
                                         window.r().reflector().get_jsobject());
             let evtarget: JSRef<EventTarget> = EventTargetCast::from_ref(*self);
             evtarget.set_event_handler_uncompiled(cx, url, reflector,
-                                                  name.slice_from(2),
+                                                  &name[2..],
                                                   attr.value().as_slice().to_owned());
         }
     }
 }
 
-#[derive(Copy, PartialEq, Show)]
+#[derive(Copy, PartialEq, Debug)]
 #[jstraceable]
 pub enum HTMLElementTypeId {
     HTMLElement,

@@ -2,9 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#![deny(unused_imports)]
-#![deny(unused_variables)]
-#![allow(unstable)]
+#![feature(env, os)]
 
 #[cfg(target_os="android")]
 extern crate libc;
@@ -12,7 +10,7 @@ extern crate libc;
 extern crate servo;
 extern crate time;
 extern crate util;
-extern crate "net" as servo_net;
+extern crate net;
 
 #[cfg(not(test))]
 extern crate "glutin_app" as app;
@@ -31,7 +29,7 @@ use libc::c_int;
 use util::opts;
 
 #[cfg(not(test))]
-use servo_net::resource_task;
+use net::resource_task;
 
 #[cfg(not(test))]
 use servo::Browser;
@@ -40,9 +38,6 @@ use compositing::windowing::WindowEvent;
 
 #[cfg(target_os="android")]
 use std::borrow::ToOwned;
-
-#[cfg(not(any(test,target_os="android")))]
-use std::os;
 
 #[cfg(not(test))]
 struct BrowserWrapper {
@@ -62,7 +57,8 @@ fn get_args() -> Vec<String> {
 
 #[cfg(not(target_os="android"))]
 fn get_args() -> Vec<String> {
-    os::args()
+    use std::env;
+    env::args().map(|s| s.into_string().unwrap()).collect()
 }
 
 #[cfg(target_os="android")]
@@ -115,7 +111,7 @@ fn setup_logging() {
 }
 
 fn main() {
-    if opts::from_cmdline_args(get_args().as_slice()) {
+    if opts::from_cmdline_args(&*get_args()) {
         setup_logging();
         resource_task::global_init();
 

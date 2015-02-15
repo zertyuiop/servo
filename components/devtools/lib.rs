@@ -10,11 +10,11 @@
 #![crate_name = "devtools"]
 #![crate_type = "rlib"]
 
-#![feature(int_uint, box_syntax)]
+#![feature(int_uint, box_syntax, io, core, rustc_private)]
+#![feature(collections, std_misc)]
 
 #![allow(non_snake_case)]
 #![allow(missing_copy_implementations)]
-#![allow(unstable)]
 
 #[macro_use]
 extern crate log;
@@ -24,7 +24,7 @@ extern crate core;
 extern crate devtools_traits;
 extern crate "serialize" as rustc_serialize;
 extern crate serialize;
-extern crate "msg" as servo_msg;
+extern crate msg;
 extern crate time;
 extern crate util;
 
@@ -35,9 +35,9 @@ use actors::root::RootActor;
 use actors::tab::TabActor;
 use protocol::JsonPacketStream;
 
-use devtools_traits::{ServerExitMsg, DevtoolsControlMsg, NewGlobal, DevtoolScriptControlMsg};
-use devtools_traits::{DevtoolsPageInfo, SendConsoleMessage, ConsoleMessage};
-use servo_msg::constellation_msg::PipelineId;
+use devtools_traits::{ConsoleMessage, DevtoolsControlMsg};
+use devtools_traits::{DevtoolsPageInfo, DevtoolScriptControlMsg};
+use msg::constellation_msg::PipelineId;
 use util::task::spawn_named;
 
 use std::borrow::ToOwned;
@@ -45,8 +45,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::mpsc::TryRecvError::{Disconnected, Empty};
-use std::io::{TcpListener, TcpStream};
-use std::io::{Acceptor, Listener, TimedOut};
+use std::old_io::{TcpListener, TcpStream};
+use std::old_io::{Acceptor, Listener, TimedOut};
 use std::sync::{Arc, Mutex};
 use time::precise_time_ns;
 
@@ -231,11 +231,11 @@ fn run_server(receiver: Receiver<DevtoolsControlMsg>, port: u16) {
         match acceptor.accept() {
             Err(ref e) if e.kind == TimedOut => {
                 match receiver.try_recv() {
-                    Ok(ServerExitMsg) | Err(Disconnected) => break,
-                    Ok(NewGlobal(id, sender, pageinfo)) =>
+                    Ok(DevtoolsControlMsg::ServerExitMsg) | Err(Disconnected) => break,
+                    Ok(DevtoolsControlMsg::NewGlobal(id, sender, pageinfo)) =>
                         handle_new_global(actors.clone(), id,sender, &mut actor_pipelines,
                                           pageinfo),
-                    Ok(SendConsoleMessage(id, console_message)) =>
+                    Ok(DevtoolsControlMsg::SendConsoleMessage(id, console_message)) =>
                         handle_console_message(actors.clone(), id, console_message,
                                                &actor_pipelines),
                     Err(Empty) => acceptor.set_timeout(Some(POLL_TIMEOUT)),

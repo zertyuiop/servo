@@ -35,10 +35,10 @@ use gfx::display_list::{StackingContext, TextDisplayItem};
 use gfx::paint_task::PaintLayer;
 use png;
 use png::PixelsByColorType;
-use servo_msg::compositor_msg::ScrollPolicy;
-use servo_msg::constellation_msg::Msg as ConstellationMsg;
-use servo_msg::constellation_msg::ConstellationChan;
-use servo_net::image::holder::ImageHolder;
+use msg::compositor_msg::ScrollPolicy;
+use msg::constellation_msg::Msg as ConstellationMsg;
+use msg::constellation_msg::ConstellationChan;
+use net::image::holder::ImageHolder;
 use servo_util::cursor::Cursor;
 use servo_util::geometry::{self, Au, to_px, to_frac_px};
 use servo_util::logical_geometry::{LogicalPoint, LogicalRect, LogicalSize};
@@ -468,9 +468,7 @@ impl FragmentDisplayListBuilding for Fragment {
                             position_to_offset(gradient.stops[i - 1].position.unwrap(), length)
                         };
                         let (end_index, end_offset) =
-                            match gradient.stops
-                                          .as_slice()
-                                          .slice_from(i)
+                            match gradient.stops[i..]
                                           .iter()
                                           .enumerate()
                                           .find(|&(_, ref stop)| stop.position.is_some()) {
@@ -1333,7 +1331,7 @@ fn position_to_offset(position: LengthOrPercentage, Au(total_length): Au) -> f32
 }
 
 /// "Steps" as defined by CSS 2.1 § E.2.
-#[derive(Clone, PartialEq, Show, Copy)]
+#[derive(Clone, PartialEq, Debug, Copy)]
 pub enum StackingLevel {
     /// The border and backgrounds for the root of this stacking context: steps 1 and 2.
     BackgroundAndBorders,

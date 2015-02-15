@@ -27,7 +27,7 @@ macro_rules! define_css_keyword_enum {
             }
         }
 
-        impl ::std::fmt::Show for $name {
+        impl ::std::fmt::Debug for $name {
             #[inline]
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                 use cssparser::ToCss;
@@ -53,7 +53,7 @@ pub mod specified {
     use std::ascii::AsciiExt;
     use std::f64::consts::PI;
     use std::fmt;
-    use std::fmt::{Formatter, Show};
+    use std::fmt::{Formatter, Debug};
     use url::Url;
     use cssparser::{self, Token, Parser, ToCss, CssStringWriter};
     use parser::ParserContext;
@@ -82,14 +82,14 @@ pub mod specified {
         }
     }
 
-    impl fmt::Show for CSSColor {
+    impl fmt::Debug for CSSColor {
         #[inline] fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.fmt_to_css(f) }
     }
 
     impl ToCss for CSSColor {
         fn to_css<W>(&self, dest: &mut W) -> text_writer::Result where W: TextWriter {
             match self.authored {
-                Some(ref s) => dest.write_str(s.as_slice()),
+                Some(ref s) => dest.write_str(s),
                 None => self.parsed.to_css(dest),
             }
         }
@@ -100,14 +100,14 @@ pub mod specified {
         pub parsed: cssparser::RGBA,
         pub authored: Option<String>,
     }
-    impl fmt::Show for CSSRGBA {
+    impl fmt::Debug for CSSRGBA {
         #[inline] fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.fmt_to_css(f) }
     }
 
     impl ToCss for CSSRGBA {
         fn to_css<W>(&self, dest: &mut W) -> text_writer::Result where W: TextWriter {
             match self.authored {
-                Some(ref s) => dest.write_str(s.as_slice()),
+                Some(ref s) => dest.write_str(s),
                 None => self.parsed.to_css(dest),
             }
         }
@@ -116,7 +116,7 @@ pub mod specified {
     #[derive(Clone, PartialEq)]
     pub struct CSSImage(pub Option<Image>);
 
-    impl fmt::Show for CSSImage {
+    impl fmt::Debug for CSSImage {
         #[inline] fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.fmt_to_css(f) }
     }
 
@@ -143,7 +143,7 @@ pub mod specified {
         ServoCharacterWidth(i32),
     }
 
-    impl fmt::Show for Length {
+    impl fmt::Debug for Length {
         #[inline] fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.fmt_to_css(f) }
     }
 
@@ -171,7 +171,7 @@ pub mod specified {
         fn parse_internal(input: &mut Parser, negative_ok: bool) -> Result<Length, ()> {
             match try!(input.next()) {
                 Token::Dimension(ref value, ref unit) if negative_ok || value.value >= 0. => {
-                    Length::parse_dimension(value.value, unit.as_slice())
+                    Length::parse_dimension(value.value, unit)
                 }
                 Token::Number(ref value) if value.value == 0. => Ok(Length::Au(Au(0))),
                 _ => Err(())
@@ -211,7 +211,7 @@ pub mod specified {
         Percentage(CSSFloat),  // [0 .. 100%] maps to [0.0 .. 1.0]
     }
 
-    impl fmt::Show for LengthOrPercentage {
+    impl fmt::Debug for LengthOrPercentage {
         #[inline] fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.fmt_to_css(f) }
     }
 
@@ -229,7 +229,7 @@ pub mod specified {
                           -> Result<LengthOrPercentage, ()> {
             match try!(input.next()) {
                 Token::Dimension(ref value, ref unit) if negative_ok || value.value >= 0. => {
-                    Length::parse_dimension(value.value, unit.as_slice())
+                    Length::parse_dimension(value.value, unit)
                     .map(LengthOrPercentage::Length)
                 }
                 Token::Percentage(ref value) if negative_ok || value.unit_value >= 0. => {
@@ -259,7 +259,7 @@ pub mod specified {
         Auto,
     }
 
-    impl fmt::Show for LengthOrPercentageOrAuto {
+    impl fmt::Debug for LengthOrPercentageOrAuto {
         #[inline] fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.fmt_to_css(f) }
     }
 
@@ -278,7 +278,7 @@ pub mod specified {
                      -> Result<LengthOrPercentageOrAuto, ()> {
             match try!(input.next()) {
                 Token::Dimension(ref value, ref unit) if negative_ok || value.value >= 0. => {
-                    Length::parse_dimension(value.value, unit.as_slice())
+                    Length::parse_dimension(value.value, unit)
                     .map(LengthOrPercentageOrAuto::Length)
                 }
                 Token::Percentage(ref value) if negative_ok || value.unit_value >= 0. => {
@@ -310,7 +310,7 @@ pub mod specified {
         None,
     }
 
-    impl fmt::Show for LengthOrPercentageOrNone {
+    impl fmt::Debug for LengthOrPercentageOrNone {
         #[inline] fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.fmt_to_css(f) }
     }
 
@@ -329,7 +329,7 @@ pub mod specified {
                      -> Result<LengthOrPercentageOrNone, ()> {
             match try!(input.next()) {
                 Token::Dimension(ref value, ref unit) if negative_ok || value.value >= 0. => {
-                    Length::parse_dimension(value.value, unit.as_slice())
+                    Length::parse_dimension(value.value, unit)
                     .map(LengthOrPercentageOrNone::Length)
                 }
                 Token::Percentage(ref value) if negative_ok || value.unit_value >= 0. => {
@@ -370,7 +370,7 @@ pub mod specified {
         pub fn parse(input: &mut Parser) -> Result<PositionComponent, ()> {
             match try!(input.next()) {
                 Token::Dimension(ref value, ref unit) => {
-                    Length::parse_dimension(value.value, unit.as_slice())
+                    Length::parse_dimension(value.value, unit)
                     .map(PositionComponent::Length)
                 }
                 Token::Percentage(ref value) => {
@@ -409,7 +409,7 @@ pub mod specified {
     #[derive(Clone, PartialEq, PartialOrd, Copy)]
     pub struct Angle(pub CSSFloat);
 
-    impl fmt::Show for Angle {
+    impl fmt::Debug for Angle {
         #[inline] fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.fmt_to_css(f) }
     }
 
@@ -457,7 +457,7 @@ pub mod specified {
         LinearGradient(LinearGradient),
     }
 
-    impl fmt::Show for Image {
+    impl fmt::Debug for Image {
         #[inline] fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.fmt_to_css(f) }
     }
 
@@ -479,7 +479,7 @@ pub mod specified {
         pub fn parse(context: &ParserContext, input: &mut Parser) -> Result<Image, ()> {
             match try!(input.next()) {
                 Token::Url(url) => {
-                    Ok(Image::Url(context.parse_url(url.as_slice())))
+                    Ok(Image::Url(context.parse_url(&url)))
                 }
                 Token::Function(name) => {
                     match_ignore_ascii_case! { name,
@@ -515,7 +515,7 @@ pub mod specified {
         pub stops: Vec<ColorStop>,
     }
 
-    impl fmt::Show for LinearGradient {
+    impl fmt::Debug for LinearGradient {
         #[inline] fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.fmt_to_css(f) }
     }
 
@@ -539,7 +539,7 @@ pub mod specified {
         Corner(HorizontalDirection, VerticalDirection),
     }
 
-    impl fmt::Show for AngleOrCorner {
+    impl fmt::Debug for AngleOrCorner {
         #[inline] fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.fmt_to_css(f) }
     }
 
@@ -569,7 +569,7 @@ pub mod specified {
         pub position: Option<LengthOrPercentage>,
     }
 
-    impl fmt::Show for ColorStop {
+    impl fmt::Debug for ColorStop {
         #[inline] fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { self.fmt_to_css(f) }
     }
 
@@ -748,7 +748,7 @@ pub mod computed {
         Length(Au),
         Percentage(CSSFloat),
     }
-    impl fmt::Show for LengthOrPercentage {
+    impl fmt::Debug for LengthOrPercentage {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             match self {
                 &LengthOrPercentage::Length(length) => write!(f, "{:?}", length),
@@ -774,7 +774,7 @@ pub mod computed {
         Percentage(CSSFloat),
         Auto,
     }
-    impl fmt::Show for LengthOrPercentageOrAuto {
+    impl fmt::Debug for LengthOrPercentageOrAuto {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             match self {
                 &LengthOrPercentageOrAuto::Length(length) => write!(f, "{:?}", length),
@@ -802,7 +802,7 @@ pub mod computed {
         Percentage(CSSFloat),
         None,
     }
-    impl fmt::Show for LengthOrPercentageOrNone {
+    impl fmt::Debug for LengthOrPercentageOrNone {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             match self {
                 &LengthOrPercentageOrNone::Length(length) => write!(f, "{:?}", length),
@@ -831,7 +831,7 @@ pub mod computed {
         LinearGradient(LinearGradient),
     }
 
-    impl fmt::Show for Image {
+    impl fmt::Debug for Image {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             match self {
                 &Image::Url(ref url) => write!(f, "url(\"{}\")", url),
@@ -850,7 +850,7 @@ pub mod computed {
         pub stops: Vec<ColorStop>,
     }
 
-    impl fmt::Show for LinearGradient {
+    impl fmt::Debug for LinearGradient {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             let _ = write!(f, "{:?}", self.angle_or_corner);
             for stop in self.stops.iter() {
@@ -871,7 +871,7 @@ pub mod computed {
         pub position: Option<LengthOrPercentage>,
     }
 
-    impl fmt::Show for ColorStop {
+    impl fmt::Debug for ColorStop {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             let _ = write!(f, "{:?}", self.color);
             self.position.map(|pos| {

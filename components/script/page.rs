@@ -22,11 +22,11 @@ use script_traits::{UntrustedNodeAddress, ScriptControlChan};
 
 use geom::{Point2D, Rect, Size2D};
 use js::rust::Cx;
-use servo_msg::compositor_msg::ScriptListener;
-use servo_msg::constellation_msg::{ConstellationChan, WindowSizeData};
-use servo_msg::constellation_msg::{PipelineId, SubpageId};
-use servo_net::resource_task::ResourceTask;
-use servo_net::storage_task::StorageTask;
+use msg::compositor_msg::ScriptListener;
+use msg::constellation_msg::{ConstellationChan, WindowSizeData};
+use msg::constellation_msg::{PipelineId, SubpageId};
+use net::resource_task::ResourceTask;
+use net::storage_task::StorageTask;
 use util::geometry::{Au, MAX_RECT};
 use util::geometry;
 use util::str::DOMString;
@@ -327,25 +327,19 @@ impl Page {
     /// layout task has finished any pending request messages.
     fn join_layout(&self) {
         let mut layout_join_port = self.layout_join_port.borrow_mut();
-        if layout_join_port.is_some() {
-            let join_port = replace(&mut *layout_join_port, None);
-            match join_port {
-                Some(ref join_port) => {
-                    match join_port.try_recv() {
-                        Err(Empty) => {
-                            info!("script: waiting on layout");
-                            join_port.recv().unwrap();
-                        }
-                        Ok(_) => {}
-                        Err(Disconnected) => {
-                            panic!("Layout task failed while script was waiting for a result.");
-                        }
-                    }
-
-                    debug!("script: layout joined")
+        if let Some(join_port) = replace(&mut *layout_join_port, None) {
+            match join_port.try_recv() {
+                Err(Empty) => {
+                    info!("script: waiting on layout");
+                    join_port.recv().unwrap();
                 }
-                None => panic!("reader forked but no join port?"),
+                Ok(_) => {}
+                Err(Disconnected) => {
+                    panic!("Layout task failed while script was waiting for a result.");
+                }
             }
+
+            debug!("script: layout joined")
         }
     }
 

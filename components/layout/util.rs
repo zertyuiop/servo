@@ -2,14 +2,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#![allow(unsafe_blocks)]
+
 use construct::ConstructionResult;
 use incremental::RestyleDamage;
 use parallel::DomParallelInfo;
 use wrapper::{LayoutNode, TLayoutNode, ThreadSafeLayoutNode};
 
+use azure::azure_hl::{Color};
 use gfx::display_list::OpaqueNode;
 use gfx;
-use libc::uintptr_t;
+use libc::{c_void, uintptr_t};
 use script::dom::bindings::js::LayoutJS;
 use script::dom::node::{Node, SharedLayoutData};
 use script::layout_interface::{LayoutChan, TrustedNodeAddress};
@@ -141,9 +144,7 @@ impl OpaqueNodeMethods for OpaqueNode {
 
     fn from_thread_safe_layout_node(node: &ThreadSafeLayoutNode) -> OpaqueNode {
         unsafe {
-            let abstract_node = node.get_jsmanaged();
-            let ptr: uintptr_t = abstract_node.get_jsobject() as uintptr_t;
-            OpaqueNode(ptr)
+            OpaqueNodeMethods::from_jsmanaged(node.get_jsmanaged())
         }
     }
 
@@ -161,22 +162,19 @@ impl OpaqueNodeMethods for OpaqueNode {
     }
 
     fn to_untrusted_node_address(&self) -> UntrustedNodeAddress {
-        unsafe {
-            let OpaqueNode(addr) = *self;
-            let addr: UntrustedNodeAddress = mem::transmute(addr);
-            addr
-        }
+        let OpaqueNode(addr) = *self;
+        UntrustedNodeAddress(addr as *const c_void)
     }
 }
 
 /// Allows a CSS color to be converted into a graphics color.
 pub trait ToGfxColor {
     /// Converts a CSS color to a graphics color.
-    fn to_gfx_color(&self) -> gfx::color::Color;
+    fn to_gfx_color(&self) -> Color;
 }
 
 impl ToGfxColor for style::values::RGBA {
-    fn to_gfx_color(&self) -> gfx::color::Color {
+    fn to_gfx_color(&self) -> Color {
         gfx::color::rgba(self.red, self.green, self.blue, self.alpha)
     }
 }

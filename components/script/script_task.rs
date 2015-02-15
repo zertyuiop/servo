@@ -31,7 +31,7 @@ use dom::htmlelement::HTMLElementTypeId;
 use dom::htmliframeelement::HTMLIFrameElement;
 use dom::keyboardevent::KeyboardEvent;
 use dom::mouseevent::MouseEvent;
-use dom::node::{self, Node, NodeHelpers, NodeDamage, NodeTypeId};
+use dom::node::{self, Node, NodeHelpers, NodeDamage, NodeTypeId, window_from_node};
 use dom::window::{Window, WindowHelpers, ScriptHelpers};
 use dom::worker::{Worker, TrustedWorkerAddress};
 use parse::html::{HTMLInput, parse_html};
@@ -41,9 +41,8 @@ use page::{Page, IterablePage, Frame};
 use timers::TimerId;
 use devtools;
 
-use devtools_traits::{DevtoolsControlChan, DevtoolsControlPort, NewGlobal, GetRootNode, DevtoolsPageInfo};
-use devtools_traits::{DevtoolScriptControlMsg, EvaluateJS, GetDocumentElement};
-use devtools_traits::{GetChildren, GetLayout, ModifyAttribute, WantsLiveNotifications};
+use devtools_traits::{DevtoolsControlChan, DevtoolsControlPort, DevtoolsPageInfo};
+use devtools_traits::{DevtoolsControlMsg, DevtoolScriptControlMsg};
 use script_traits::CompositorEvent;
 use script_traits::CompositorEvent::{ResizeEvent, ReflowEvent, ClickEvent};
 use script_traits::CompositorEvent::{MouseDownEvent, MouseUpEvent};
@@ -51,18 +50,18 @@ use script_traits::CompositorEvent::{MouseMoveEvent, KeyEvent};
 use script_traits::{NewLayoutInfo, OpaqueScriptLayoutChannel};
 use script_traits::{ConstellationControlMsg, ScriptControlChan};
 use script_traits::ScriptTaskFactory;
-use servo_msg::compositor_msg::ReadyState::{FinishedLoading, Loading, PerformingLayout};
-use servo_msg::compositor_msg::{LayerId, ScriptListener};
-use servo_msg::constellation_msg::{ConstellationChan};
-use servo_msg::constellation_msg::{LoadData, NavigationDirection, PipelineId, SubpageId};
-use servo_msg::constellation_msg::{Failure, Msg, WindowSizeData, Key, KeyState};
-use servo_msg::constellation_msg::{KeyModifiers, SUPER, SHIFT, CONTROL, ALT};
-use servo_msg::constellation_msg::{PipelineExitType};
-use servo_msg::constellation_msg::Msg as ConstellationMsg;
-use servo_net::image_cache_task::ImageCacheTask;
-use servo_net::resource_task::{ResourceTask, ControlMsg};
-use servo_net::resource_task::LoadData as NetLoadData;
-use servo_net::storage_task::StorageTask;
+use msg::compositor_msg::ReadyState::{FinishedLoading, Loading, PerformingLayout};
+use msg::compositor_msg::{LayerId, ScriptListener};
+use msg::constellation_msg::{ConstellationChan};
+use msg::constellation_msg::{LoadData, NavigationDirection, PipelineId, SubpageId};
+use msg::constellation_msg::{Failure, Msg, WindowSizeData, Key, KeyState};
+use msg::constellation_msg::{KeyModifiers, SUPER, SHIFT, CONTROL, ALT};
+use msg::constellation_msg::{PipelineExitType};
+use msg::constellation_msg::Msg as ConstellationMsg;
+use net::image_cache_task::ImageCacheTask;
+use net::resource_task::{ResourceTask, ControlMsg};
+use net::resource_task::LoadData as NetLoadData;
+use net::storage_task::StorageTask;
 use util::geometry::to_frac_px;
 use util::smallvec::SmallVec;
 use util::str::DOMString;
@@ -71,7 +70,7 @@ use util::task_state;
 
 use geom::point::Point2D;
 use hyper::header::{Header, Headers, HeaderFormat};
-use hyper::header::shared::util as header_util;
+use hyper::header::parsing as header_parsing;
 use js::jsapi::{JS_SetWrapObjectCallbacks, JS_SetGCZeal, JS_DEFAULT_ZEAL_FREQ, JS_GC};
 use js::jsapi::{JSContext, JSRuntime, JSObject};
 use js::jsapi::{JS_SetGCParameter, JSGC_MAX_BYTES};
@@ -84,7 +83,7 @@ use libc;
 use std::any::Any;
 use std::borrow::ToOwned;
 use std::cell::Cell;
-use std::fmt::{self, Show};
+use std::fmt::{self, Display};
 use std::mem::replace;
 use std::num::ToPrimitive;
 use std::rc::Rc;
@@ -109,7 +108,7 @@ pub trait Runnable {
 pub enum ScriptMsg {
     /// Acts on a fragment URL load on the specified pipeline (only dispatched
     /// to ScriptTask).
-    TriggerFragment(PipelineId, Url),
+    TriggerFragment(PipelineId, String),
     /// Begins a content-initiated load on the specified pipeline (only
     /// dispatched to ScriptTask).
     TriggerLoad(PipelineId, LoadData),
@@ -610,8 +609,8 @@ impl ScriptTask {
         match msg {
             ScriptMsg::TriggerLoad(id, load_data) =>
                 self.trigger_load(id, load_data),
-            ScriptMsg::TriggerFragment(id, url) =>
-                self.trigger_fragment(id, url),
+            ScriptMsg::TriggerFragment(id, fragment) =>
+                self.trigger_fragment(id, fragment),
             ScriptMsg::FireTimer(TimerSource::FromWindow(id), timer_id) =>
                 self.handle_fire_timer_msg(id, timer_id),
             ScriptMsg::FireTimer(TimerSource::FromWorker, _) =>
@@ -633,19 +632,19 @@ impl ScriptTask {
 
     fn handle_msg_from_devtools(&self, msg: DevtoolScriptControlMsg) {
         match msg {
-            EvaluateJS(id, s, reply) =>
+            DevtoolScriptControlMsg::EvaluateJS(id, s, reply) =>
                 devtools::handle_evaluate_js(&*self.page.borrow(), id, s, reply),
-            GetRootNode(id, reply) =>
+            DevtoolScriptControlMsg::GetRootNode(id, reply) =>
                 devtools::handle_get_root_node(&*self.page.borrow(), id, reply),
-            GetDocumentElement(id, reply) =>
+            DevtoolScriptControlMsg::GetDocumentElement(id, reply) =>
                 devtools::handle_get_document_element(&*self.page.borrow(), id, reply),
-            GetChildren(id, node_id, reply) =>
+            DevtoolScriptControlMsg::GetChildren(id, node_id, reply) =>
                 devtools::handle_get_children(&*self.page.borrow(), id, node_id, reply),
-            GetLayout(id, node_id, reply) =>
+            DevtoolScriptControlMsg::GetLayout(id, node_id, reply) =>
                 devtools::handle_get_layout(&*self.page.borrow(), id, node_id, reply),
-            ModifyAttribute(id, node_id, modifications) =>
+            DevtoolScriptControlMsg::ModifyAttribute(id, node_id, modifications) =>
                 devtools::handle_modify_attribute(&*self.page.borrow(), id, node_id, modifications),
-            WantsLiveNotifications(pipeline_id, to_send) =>
+            DevtoolScriptControlMsg::WantsLiveNotifications(pipeline_id, to_send) =>
                 devtools::handle_wants_live_notifications(&*self.page.borrow(), pipeline_id, to_send),
         }
     }
@@ -753,9 +752,10 @@ impl ScriptTask {
         }
 
         // otherwise find just the matching page and exit all sub-pages
-        match page.remove(id) {
+        match page.find(id) {
             Some(ref mut page) => {
                 shut_down_layout(&*page, (*self.js_runtime).ptr, exit_type);
+                page.remove(id);
                 false
             }
             // TODO(tkuehn): pipeline closing is currently duplicated across
@@ -946,8 +946,9 @@ impl ScriptTask {
                     title: document.r().Title(),
                     url: final_url
                 };
-                chan.send(NewGlobal(pipeline_id, self.devtools_sender.clone(),
-                                    page_info)).unwrap();
+                chan.send(DevtoolsControlMsg::NewGlobal(pipeline_id,
+                                                        self.devtools_sender.clone(),
+                                                        page_info)).unwrap();
             }
         }
     }
@@ -1112,9 +1113,9 @@ impl ScriptTask {
 
     /// The entry point for content to notify that a fragment url has been requested
     /// for the given pipeline.
-    fn trigger_fragment(&self, pipeline_id: PipelineId, url: Url) {
+    fn trigger_fragment(&self, pipeline_id: PipelineId, fragment: String) {
         let page = get_page(&*self.page.borrow(), pipeline_id);
-        match page.find_fragment_node(url.fragment.unwrap()).root() {
+        match page.find_fragment_node(fragment).root() {
             Some(node) => {
                 self.scroll_fragment_point(pipeline_id, node.r());
             }
@@ -1321,8 +1322,9 @@ fn shut_down_layout(page_tree: &Rc<Page>, rt: *mut JSRuntime, exit_type: Pipelin
         // processed this message.
         let (response_chan, response_port) = channel();
         let LayoutChan(ref chan) = page.layout_chan;
-        chan.send(layout_interface::Msg::PrepareToExit(response_chan)).unwrap();
-        response_port.recv().unwrap();
+        if chan.send(layout_interface::Msg::PrepareToExit(response_chan)).is_ok() {
+          response_port.recv().unwrap();
+        }
     }
 
     // Remove our references to the DOM objects in this page tree.
@@ -1344,7 +1346,7 @@ fn shut_down_layout(page_tree: &Rc<Page>, rt: *mut JSRuntime, exit_type: Pipelin
     // Destroy the layout task. If there were node leaks, layout will now crash safely.
     for page in page_tree.iter() {
         let LayoutChan(ref chan) = page.layout_chan;
-        chan.send(layout_interface::Msg::ExitNow(exit_type)).unwrap();
+        chan.send(layout_interface::Msg::ExitNow(exit_type)).ok();
     }
 }
 
@@ -1361,13 +1363,13 @@ struct LastModified(pub Tm);
 
 impl Header for LastModified {
     #[inline]
-    fn header_name(_: Option<LastModified>) -> &'static str {
+    fn header_name() -> &'static str {
         "Last-Modified"
     }
 
     // Parses an RFC 2616 compliant date/time string,
     fn parse_header(raw: &[Vec<u8>]) -> Option<LastModified> {
-        header_util::from_one_raw_str(raw).and_then(|s: String| {
+        header_parsing::from_one_raw_str(raw).and_then(|s: String| {
             let s = s.as_slice();
             strptime(s, "%a, %d %b %Y %T %Z").or_else(|_| {
                 strptime(s, "%A, %d-%b-%y %T %Z")
@@ -1384,8 +1386,8 @@ impl HeaderFormat for LastModified {
     fn fmt_header(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let LastModified(ref tm) = *self;
         match tm.tm_utcoff {
-            0 => tm.rfc822().fmt(f),
-            _ => tm.to_utc().rfc822().fmt(f)
+            0 => <_ as Display>::fmt(&tm.rfc822(), f),
+            _ => <_ as Display>::fmt(&tm.to_utc().rfc822(), f)
         }
     }
 }
@@ -1430,6 +1432,20 @@ impl DocumentProgressHandler {
         let doctarget: JSRef<EventTarget> = EventTargetCast::from_ref(document.r());
         event.r().set_trusted(true);
         let _ = wintarget.dispatch_event_with_target(doctarget, event.r());
+
+        let window_ref = window.r();
+        let browser_context = window_ref.browser_context();
+        let browser_context = browser_context.as_ref().unwrap();
+
+        browser_context.frame_element().map(|frame_element| {
+            let frame_element = frame_element.root();
+            let frame_window = window_from_node(frame_element.r()).root();
+            let event = Event::new(GlobalRef::Window(frame_window.r()), "load".to_owned(),
+                                   EventBubbles::DoesNotBubble,
+                                   EventCancelable::NotCancelable).root();
+            let target: JSRef<EventTarget> = EventTargetCast::from_ref(frame_element.r());
+            event.r().fire(target);
+        });
     }
 }
 

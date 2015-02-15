@@ -11,7 +11,7 @@ use eutil::Downcast;
 use interfaces::CefBrowser;
 use render_handler::CefRenderHandlerExtensions;
 use types::{cef_cursor_handle_t, cef_rect_t};
-use wrappers::Utf16Encoder;
+use unicode::str::Utf16Encoder;
 
 use compositing::compositor_task::{self, CompositorProxy, CompositorReceiver};
 use compositing::windowing::{WindowEvent, WindowMethods};
@@ -21,18 +21,15 @@ use gleam::gl;
 use layers::geometry::DevicePixel;
 use layers::platform::surface::NativeGraphicsMetadata;
 use libc::{c_char, c_void};
-use servo_msg::constellation_msg::{Key, KeyModifiers};
-use servo_msg::compositor_msg::{ReadyState, PaintState};
-use servo_msg::constellation_msg::LoadData;
+use msg::constellation_msg::{Key, KeyModifiers};
+use msg::compositor_msg::{ReadyState, PaintState};
+use msg::constellation_msg::LoadData;
 use util::cursor::Cursor;
 use util::geometry::ScreenPx;
 use std::cell::RefCell;
 use std::ffi::CString;
 use std::rc::Rc;
 use std::sync::mpsc::{Sender, channel};
-
-#[cfg(target_os="macos")]
-use std::ptr;
 
 /// The type of an off-screen window.
 #[derive(Clone)]
@@ -327,7 +324,7 @@ impl CompositorProxy for CefCompositorProxy {
     #[cfg(target_os="macos")]
     fn send(&mut self, msg: compositor_task::Msg) {
         use cocoa::appkit::{NSApp, NSApplication, NSApplicationDefined, NSAutoreleasePool};
-        use cocoa::appkit::{NSEvent, NSPoint};
+        use cocoa::appkit::{NSEvent, NSEventModifierFlags, NSEventSubtype, NSPoint};
         use cocoa::base::nil;
 
         // Send a message and kick the OS event loop awake.
@@ -336,18 +333,18 @@ impl CompositorProxy for CefCompositorProxy {
         unsafe {
             let pool = NSAutoreleasePool::new(nil);
             let event =
-                NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2(
+                NSEvent::otherEventWithType_location_modifierFlags_timestamp_windowNumber_context_subtype_data1_data2_(
                 nil,
                 NSApplicationDefined,
                 NSPoint::new(0.0, 0.0),
-                0,
+                NSEventModifierFlags::empty(),
                 0.0,
                 0,
-                ptr::null_mut(),
                 0,
+                NSEventSubtype::NSWindowExposedEventType,
                 0,
                 0);
-            NSApp().postEvent_atStart_(event, false);
+            NSApp().postEvent_atStart_(event, 0);
             pool.drain();
         }
     }
@@ -355,7 +352,7 @@ impl CompositorProxy for CefCompositorProxy {
     #[cfg(target_os="linux")]
     fn send(&mut self, msg: compositor_task::Msg) {
         // FIXME(pcwalton): Kick the GTK event loop awake?
-        self.sender.send(msg);
+        self.sender.send(msg).unwrap();
     }
 
     fn clone_compositor_proxy(&self) -> Box<CompositorProxy+Send> {

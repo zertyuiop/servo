@@ -51,7 +51,7 @@ use wrapper::ThreadSafeLayoutNode;
 use geom::{Point2D, Rect, Size2D};
 use gfx::display_list::{ClippingRegion, DisplayList};
 use serialize::{Encoder, Encodable};
-use servo_msg::compositor_msg::LayerId;
+use msg::compositor_msg::LayerId;
 use servo_util::geometry::{Au, MAX_AU};
 use servo_util::logical_geometry::{LogicalPoint, LogicalRect, LogicalSize};
 use servo_util::opts;
@@ -63,7 +63,7 @@ use style::computed_values::{overflow, position, box_sizing, display, float};
 use std::sync::Arc;
 
 /// Information specific to floated blocks.
-#[derive(Clone, Encodable)]
+#[derive(Clone, RustcEncodable)]
 pub struct FloatedBlockInfo {
     /// The amount of inline size that is available for the float.
     pub containing_inline_size: Au,
@@ -735,7 +735,7 @@ impl BlockFlow {
         traversal.process(flow);
 
         let cb_block_start_edge_offset = flow.generated_containing_block_rect().start.b;
-        let mut descendant_offset_iter = mut_base(flow).abs_descendants.iter_with_offset();
+        let descendant_offset_iter = mut_base(flow).abs_descendants.iter_with_offset();
         // Pass in the respective static y offset for each descendant.
         for (ref mut descendant_link, ref y_offset) in descendant_offset_iter {
             let block = descendant_link.as_block();
@@ -1902,7 +1902,7 @@ impl Flow for BlockFlow {
     }
 }
 
-impl fmt::Show for BlockFlow {
+impl fmt::Debug for BlockFlow {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
                "{:?} - {:x}: frag={:?} ({:?})",
@@ -1914,7 +1914,7 @@ impl fmt::Show for BlockFlow {
 }
 
 /// The inputs for the inline-sizes-and-margins constraint equation.
-#[derive(Show, Copy)]
+#[derive(Debug, Copy)]
 pub struct ISizeConstraintInput {
     pub computed_inline_size: MaybeAuto,
     pub inline_start_margin: MaybeAuto,
@@ -1947,7 +1947,7 @@ impl ISizeConstraintInput {
 }
 
 /// The solutions for the inline-size-and-margins constraint equation.
-#[derive(Copy, Show)]
+#[derive(Copy, Debug)]
 pub struct ISizeConstraintSolution {
     pub inline_start: Au,
     pub inline_end: Au,

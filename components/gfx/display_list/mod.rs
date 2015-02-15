@@ -16,7 +16,6 @@
 
 #![deny(unsafe_blocks)]
 
-use color::Color;
 use display_list::optimizer::DisplayListOptimizer;
 use paint_context::{PaintContext, ToAzureRect};
 use self::DisplayItem::*;
@@ -25,13 +24,15 @@ use text::glyph::CharIndex;
 use text::TextRun;
 
 use azure::azure::AzFloat;
+use azure::azure_hl::{Color};
+
 use collections::dlist::{self, DList};
 use geom::{Point2D, Rect, SideOffsets2D, Size2D, Matrix2D};
 use geom::num::Zero;
 use libc::uintptr_t;
 use paint_task::PaintLayer;
-use servo_msg::compositor_msg::LayerId;
-use servo_net::image::base::Image;
+use msg::compositor_msg::LayerId;
+use net::image::base::Image;
 use util::cursor::Cursor;
 use util::dlist as servo_dlist;
 use util::geometry::{self, Au, MAX_RECT, ZERO_RECT};
@@ -109,14 +110,12 @@ impl DisplayList {
     /// `other` in the process.
     #[inline]
     pub fn append_from(&mut self, other: &mut DisplayList) {
-        servo_dlist::append_from(&mut self.background_and_borders,
-                                 &mut other.background_and_borders);
-        servo_dlist::append_from(&mut self.block_backgrounds_and_borders,
-                                 &mut other.block_backgrounds_and_borders);
-        servo_dlist::append_from(&mut self.floats, &mut other.floats);
-        servo_dlist::append_from(&mut self.content, &mut other.content);
-        servo_dlist::append_from(&mut self.outlines, &mut other.outlines);
-        servo_dlist::append_from(&mut self.children, &mut other.children);
+        self.background_and_borders.append(&mut other.background_and_borders);
+        self.block_backgrounds_and_borders.append(&mut other.block_backgrounds_and_borders);
+        self.floats.append(&mut other.floats);
+        self.content.append(&mut other.content);
+        self.outlines.append(&mut other.outlines);
+        self.children.append(&mut other.children);
     }
 
     /// Merges all display items from all non-float stacking levels to the `float` stacking level.
@@ -355,7 +354,7 @@ impl StackingContext {
         fn hit_test_in_list<'a,I>(point: Point2D<Au>,
                                   result: &mut Vec<DisplayItemMetadata>,
                                   topmost_only: bool,
-                                  mut iterator: I)
+                                  iterator: I)
                                   where I: Iterator<Item=&'a DisplayItem> {
             for item in iterator {
                 // TODO(pcwalton): Use a precise algorithm here. This will allow us to properly hit
@@ -512,7 +511,7 @@ impl BaseDisplayItem {
 /// A clipping region for a display item. Currently, this can describe rectangles, rounded
 /// rectangles (for `border-radius`), or arbitrary intersections of the two. Arbitrary transforms
 /// are not supported because those are handled by the higher-level `StackingContext` abstraction.
-#[derive(Clone, PartialEq, Show)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct ClippingRegion {
     /// The main rectangular region. This does not include any corners.
     pub main: Rect<Au>,
@@ -526,7 +525,7 @@ pub struct ClippingRegion {
 /// A complex clipping region. These don't as easily admit arbitrary intersection operations, so
 /// they're stored in a list over to the side. Currently a complex clipping region is just a
 /// rounded rectangle, but the CSS WGs will probably make us throw more stuff in here eventually.
-#[derive(Clone, PartialEq, Show)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct ComplexClippingRegion {
     /// The boundaries of the rectangle.
     pub rect: Rect<Au>,
@@ -750,7 +749,7 @@ pub struct BorderDisplayItem {
 /// Information about the border radii.
 ///
 /// TODO(pcwalton): Elliptical radii.
-#[derive(Clone, Default, PartialEq, Show, Copy)]
+#[derive(Clone, Default, PartialEq, Debug, Copy)]
 pub struct BorderRadii<T> {
     pub top_left: T,
     pub top_right: T,
@@ -931,7 +930,7 @@ impl DisplayItem {
     }
 }
 
-impl fmt::Show for DisplayItem {
+impl fmt::Debug for DisplayItem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} @ {:?} ({:x})",
             match *self {

@@ -6,8 +6,7 @@ use pipeline::{Pipeline, CompositionPipeline};
 
 use compositor_task::CompositorProxy;
 use compositor_task::Msg as CompositorMsg;
-use devtools_traits;
-use devtools_traits::DevtoolsControlChan;
+use devtools_traits::{DevtoolsControlChan, DevtoolsControlMsg};
 use geom::rect::{Rect, TypedRect};
 use geom::scale_factor::ScaleFactor;
 use gfx::font_cache_task::FontCacheTask;
@@ -16,18 +15,18 @@ use layout_traits::LayoutTaskFactory;
 use libc;
 use script_traits::{CompositorEvent, ConstellationControlMsg};
 use script_traits::{ScriptControlChan, ScriptTaskFactory};
-use servo_msg::compositor_msg::LayerId;
-use servo_msg::constellation_msg::{self, ConstellationChan, Failure};
-use servo_msg::constellation_msg::{IFrameSandboxState, NavigationDirection};
-use servo_msg::constellation_msg::{Key, KeyState, KeyModifiers};
-use servo_msg::constellation_msg::{LoadData, NavigationType};
-use servo_msg::constellation_msg::{PipelineExitType, PipelineId};
-use servo_msg::constellation_msg::{SubpageId, WindowSizeData};
-use servo_msg::constellation_msg::Msg as ConstellationMsg;
-use servo_net::image_cache_task::{ImageCacheTask, ImageCacheTaskClient};
-use servo_net::resource_task::ResourceTask;
-use servo_net::resource_task;
-use servo_net::storage_task::{StorageTask, StorageTaskMsg};
+use msg::compositor_msg::LayerId;
+use msg::constellation_msg::{self, ConstellationChan, Failure};
+use msg::constellation_msg::{IFrameSandboxState, NavigationDirection};
+use msg::constellation_msg::{Key, KeyState, KeyModifiers};
+use msg::constellation_msg::{LoadData, NavigationType};
+use msg::constellation_msg::{PipelineExitType, PipelineId};
+use msg::constellation_msg::{SubpageId, WindowSizeData};
+use msg::constellation_msg::Msg as ConstellationMsg;
+use net::image_cache_task::{ImageCacheTask, ImageCacheTaskClient};
+use net::resource_task::ResourceTask;
+use net::resource_task;
+use net::storage_task::{StorageTask, StorageTaskMsg};
 use util::cursor::Cursor;
 use util::geometry::{PagePx, ViewportPx};
 use util::opts;
@@ -36,7 +35,7 @@ use util::time::TimeProfilerChan;
 use std::borrow::ToOwned;
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
-use std::io;
+use std::old_io as io;
 use std::mem::replace;
 use std::rc::Rc;
 use std::sync::mpsc::{Receiver, channel};
@@ -521,7 +520,7 @@ impl<LTF: LayoutTaskFactory, STF: ScriptTaskFactory> Constellation<LTF, STF> {
         self.image_cache_task.exit();
         self.resource_task.send(resource_task::ControlMsg::Exit).unwrap();
         self.devtools_chan.as_ref().map(|chan| {
-            chan.send(devtools_traits::ServerExitMsg).unwrap();
+            chan.send(DevtoolsControlMsg::ServerExitMsg).unwrap();
         });
         self.storage_task.send(StorageTaskMsg::Exit).unwrap();
         self.font_cache_task.exit();
@@ -1084,7 +1083,7 @@ impl<LTF: LayoutTaskFactory, STF: ScriptTaskFactory> Constellation<LTF, STF> {
             return; // Our message has been discarded, probably shutting down.
         }
 
-        let mut iter = frame_tree.iter();
+        let iter = frame_tree.iter();
         for frame in iter {
             frame.has_compositor_layer.set(true);
             frame.pipeline.borrow().grant_paint_permission();

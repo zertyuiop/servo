@@ -44,7 +44,7 @@ impl<T> VecLike<T> for Vec<T> {
 
     #[inline]
     fn vec_slice_mut<'a>(&'a mut self, start: uint, end: uint) -> &'a mut [T] {
-        self.slice_mut(start, end)
+        &mut self[start..end]
     }
 }
 
@@ -325,7 +325,7 @@ impl<'a, T: 'a> Iterator for SmallVecMoveIterator<'a,T> {
 impl<'a, T: 'a> Drop for SmallVecMoveIterator<'a,T> {
     fn drop(&mut self) {
         // Destroy the remaining elements.
-        for _ in *self {}
+        for _ in self.by_ref() {}
 
         match self.allocation {
             None => {}
@@ -410,7 +410,7 @@ macro_rules! def_small_vector(
         }
 
         impl<T> FromIterator<T> for $name<T> {
-            fn from_iter<I: Iterator<Item=T>>(mut iter: I) -> $name<T> {
+            fn from_iter<I: Iterator<Item=T>>(iter: I) -> $name<T> {
                 let mut v = $name::new();
 
                 let (lower_size_bound, _) = iter.size_hint();
@@ -428,7 +428,7 @@ macro_rules! def_small_vector(
         }
 
         impl<T> $name<T> {
-            pub fn extend<I: Iterator<Item=T>>(&mut self, mut iter: I) {
+            pub fn extend<I: Iterator<Item=T>>(&mut self, iter: I) {
                 let (lower_size_bound, _) = iter.size_hint();
 
                 let target_len = self.len() + lower_size_bound;
@@ -443,7 +443,7 @@ macro_rules! def_small_vector(
             }
         }
 
-        impl<T: fmt::Show> fmt::Show for $name<T> {
+        impl<T: fmt::Debug> fmt::Debug for $name<T> {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 write!(f, "{:?}", self.as_slice())
             }

@@ -5,6 +5,8 @@
 //! The layout task. Performs layout on the DOM, builds display lists and sends them to be
 //! painted.
 
+#![allow(unsafe_blocks)]
+
 use css::node_style::StyledNode;
 use construct::ConstructionResult;
 use context::{SharedLayoutContext, SharedLayoutContextWrapper};
@@ -43,12 +45,12 @@ use script::layout_interface::{MouseOverResponse, Msg};
 use script::layout_interface::{Reflow, ReflowGoal, ScriptLayoutChan, TrustedNodeAddress};
 use script_traits::{ConstellationControlMsg, CompositorEvent, OpaqueScriptLayoutChannel};
 use script_traits::{ScriptControlChan, UntrustedNodeAddress};
-use servo_msg::compositor_msg::ScrollPolicy;
-use servo_msg::constellation_msg::Msg as ConstellationMsg;
-use servo_msg::constellation_msg::{ConstellationChan, Failure, PipelineExitType, PipelineId};
-use servo_net::image_cache_task::{ImageCacheTask, ImageResponseMsg};
-use servo_net::local_image_cache::{ImageResponder, LocalImageCache};
-use servo_net::resource_task::{ResourceTask, load_bytes_iter};
+use msg::compositor_msg::ScrollPolicy;
+use msg::constellation_msg::Msg as ConstellationMsg;
+use msg::constellation_msg::{ConstellationChan, Failure, PipelineExitType, PipelineId};
+use net::image_cache_task::{ImageCacheTask, ImageResponseMsg};
+use net::local_image_cache::{ImageResponder, LocalImageCache};
+use net::resource_task::{ResourceTask, load_bytes_iter};
 use servo_util::cursor::Cursor;
 use servo_util::geometry::Au;
 use servo_util::logical_geometry::LogicalPoint;

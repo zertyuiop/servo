@@ -2,18 +2,18 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#![feature(core)]
 #![feature(int_uint)]
+#![feature(libc)]
+#![feature(rustc_private)]
 
-#![deny(unused_imports)]
-#![deny(unused_variables)]
 #![allow(missing_copy_implementations)]
-#![allow(unstable)]
 
 extern crate devtools_traits;
 extern crate geom;
 extern crate libc;
-extern crate "msg" as servo_msg;
-extern crate "net" as servo_net;
+extern crate msg;
+extern crate net;
 extern crate util;
 extern crate url;
 extern crate serialize;
@@ -25,13 +25,13 @@ extern crate serialize;
 
 use devtools_traits::DevtoolsControlChan;
 use libc::c_void;
-use servo_msg::constellation_msg::{ConstellationChan, PipelineId, Failure, WindowSizeData};
-use servo_msg::constellation_msg::{LoadData, SubpageId, Key, KeyState, KeyModifiers};
-use servo_msg::constellation_msg::PipelineExitType;
-use servo_msg::compositor_msg::ScriptListener;
-use servo_net::image_cache_task::ImageCacheTask;
-use servo_net::resource_task::ResourceTask;
-use servo_net::storage_task::StorageTask;
+use msg::constellation_msg::{ConstellationChan, PipelineId, Failure, WindowSizeData};
+use msg::constellation_msg::{LoadData, SubpageId, Key, KeyState, KeyModifiers};
+use msg::constellation_msg::PipelineExitType;
+use msg::compositor_msg::ScriptListener;
+use net::image_cache_task::ImageCacheTask;
+use net::resource_task::ResourceTask;
+use net::storage_task::StorageTask;
 use util::smallvec::SmallVec1;
 use std::any::Any;
 use std::sync::mpsc::{Sender, Receiver};

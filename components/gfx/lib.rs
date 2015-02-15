@@ -2,17 +2,28 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#![feature(unsafe_destructor, int_uint, plugin, box_syntax)]
+#![feature(alloc)]
+#![feature(box_syntax)]
+#![feature(collections)]
+#![feature(core)]
+#![feature(hash)]
+#![feature(int_uint)]
+#![cfg_attr(any(target_os="linux", target_os = "android"), feature(io))]
+#![feature(libc)]
+#![cfg_attr(any(target_os="linux", target_os = "android"), feature(path))]
+#![feature(plugin)]
+#![feature(rustc_private)]
+#![feature(std_misc)]
+#![feature(unicode)]
+#![feature(unsafe_destructor)]
 
-#![deny(unused_imports)]
-#![deny(unused_variables)]
 #![allow(missing_copy_implementations)]
-#![allow(unstable)]
 
 #[macro_use]
 extern crate log;
 
 extern crate azure;
+#[macro_use] extern crate bitflags;
 extern crate collections;
 extern crate geom;
 extern crate layers;
@@ -24,10 +35,10 @@ extern crate "serialize" as rustc_serialize;
 extern crate unicode;
 #[no_link] #[plugin]
 extern crate "plugins" as servo_plugins;
-extern crate "net" as servo_net;
+extern crate net;
 #[macro_use]
 extern crate util;
-extern crate "msg" as servo_msg;
+extern crate msg;
 extern crate style;
 extern crate skia;
 extern crate time;

@@ -33,10 +33,10 @@ use script_task::ScriptMsg;
 use script_traits::ScriptControlChan;
 use timers::{IsInterval, TimerId, TimerManager, TimerCallback};
 
-use servo_msg::compositor_msg::ScriptListener;
-use servo_msg::constellation_msg::LoadData;
-use servo_net::image_cache_task::ImageCacheTask;
-use servo_net::storage_task::StorageTask;
+use msg::compositor_msg::ScriptListener;
+use msg::constellation_msg::LoadData;
+use net::image_cache_task::ImageCacheTask;
+use net::storage_task::StorageTask;
 use util::str::{DOMString,HTML_SPACE_CHARACTERS};
 
 use js::jsapi::JS_EvaluateUCScript;
@@ -140,7 +140,7 @@ pub fn base64_btoa(btoa: DOMString) -> Fallible<DOMString> {
 // http://www.whatwg.org/html/#atob
 pub fn base64_atob(atob: DOMString) -> Fallible<DOMString> {
     // "Let input be the string being parsed."
-    let mut input = atob.as_slice();
+    let input = atob.as_slice();
 
     // "Remove all space characters from input."
     // serialize::base64::from_base64 ignores \r and \n,
@@ -152,16 +152,16 @@ pub fn base64_atob(atob: DOMString) -> Fallible<DOMString> {
     let without_spaces = input.chars()
         .filter(|&c| ! is_html_space(c))
         .collect::<String>();
-    input = without_spaces.as_slice();
+    let mut input = without_spaces.as_slice();
 
     // "If the length of input divides by 4 leaving no remainder, then:
     //  if input ends with one or two U+003D EQUALS SIGN (=) characters,
     //  remove them from input."
     if input.len() % 4 == 0 {
         if input.ends_with("==") {
-            input = input.slice_to(input.len() - 2)
+            input = &input[..input.len() - 2]
         } else if input.ends_with("=") {
-            input = input.slice_to(input.len() - 1)
+            input = &input[..input.len() - 1]
         }
     }
 
@@ -385,10 +385,13 @@ impl<'a> WindowHelpers for JSRef<'a, Window> {
         let url = UrlParser::new().base_url(&base_url).parse(href.as_slice());
         // FIXME: handle URL parse errors more gracefully.
         let url = url.unwrap();
-        if href.as_slice().starts_with("#") {
-            self.script_chan.send(ScriptMsg::TriggerFragment(self.page.id, url));
-        } else {
-            self.script_chan.send(ScriptMsg::TriggerLoad(self.page.id, LoadData::new(url)));
+        match url.fragment {
+            Some(fragment) => {
+                self.script_chan.send(ScriptMsg::TriggerFragment(self.page.id, fragment));
+            },
+            None => {
+                self.script_chan.send(ScriptMsg::TriggerLoad(self.page.id, LoadData::new(url)));
+            }
         }
     }
 

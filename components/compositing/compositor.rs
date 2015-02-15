@@ -21,7 +21,7 @@ use gfx::color;
 use gfx::paint_task::Msg as PaintMsg;
 use gfx::paint_task::PaintRequest;
 use layers::geometry::{DevicePixel, LayerPixel};
-use layers::layers::{BufferRequest, Layer, LayerBufferSet};
+use layers::layers::{BufferRequest, Layer, LayerBuffer, LayerBufferSet};
 use layers::rendergl;
 use layers::rendergl::RenderContext;
 use layers::scene::Scene;
@@ -29,12 +29,12 @@ use png;
 use gleam::gl::types::{GLint, GLsizei};
 use gleam::gl;
 use script_traits::{ConstellationControlMsg, ScriptControlChan};
-use servo_msg::compositor_msg::{Epoch, LayerId};
-use servo_msg::compositor_msg::{ReadyState, PaintState, ScrollPolicy};
-use servo_msg::constellation_msg::{ConstellationChan, NavigationDirection};
-use servo_msg::constellation_msg::Msg as ConstellationMsg;
-use servo_msg::constellation_msg::{Key, KeyModifiers, KeyState, LoadData};
-use servo_msg::constellation_msg::{PipelineId, WindowSizeData};
+use msg::compositor_msg::{Epoch, LayerId};
+use msg::compositor_msg::{ReadyState, PaintState, ScrollPolicy};
+use msg::constellation_msg::{ConstellationChan, NavigationDirection};
+use msg::constellation_msg::Msg as ConstellationMsg;
+use msg::constellation_msg::{Key, KeyModifiers, KeyState, LoadData};
+use msg::constellation_msg::{PipelineId, WindowSizeData};
 use util::geometry::{PagePx, ScreenPx, ViewportPx};
 use util::memory::MemoryProfilerChan;
 use util::opts;
@@ -42,7 +42,7 @@ use util::time::{TimeProfilerCategory, profile, TimeProfilerChan};
 use util::{memory, time};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry::{Occupied, Vacant};
-use std::path::Path;
+use std::old_path::Path;
 use std::num::Float;
 use std::rc::Rc;
 use std::slice::bytes::copy_memory;
@@ -142,7 +142,7 @@ enum CompositionRequest {
     CompositeNow,
 }
 
-#[derive(Copy, PartialEq, Show)]
+#[derive(Copy, PartialEq, Debug)]
 enum ShutdownState {
     NotShuttingDown,
     ShuttingDown,
@@ -1036,16 +1036,12 @@ impl<Window: WindowMethods> IOCompositor<Window> {
         return results;
     }
 
-    fn send_back_unused_buffers(&mut self) {
-        match self.root_pipeline {
-            Some(ref pipeline) => {
-                let unused_buffers = self.scene.collect_unused_buffers();
-                if unused_buffers.len() != 0 {
-                    let message = PaintMsg::UnusedBuffer(unused_buffers);
-                    let _ = pipeline.paint_chan.send(message);
-                }
-            },
-            None => {}
+    fn send_back_unused_buffers(&mut self,
+                                unused_buffers: Vec<(Rc<Layer<CompositorData>>,
+                                                     Vec<Box<LayerBuffer>>)>) {
+        for (layer, buffers) in unused_buffers.into_iter() {
+            let pipeline = self.get_pipeline(layer.get_pipeline_id());
+            let _ = pipeline.paint_chan.send_opt(PaintMsg::UnusedBuffer(buffers));
         }
     }
 
@@ -1073,11 +1069,11 @@ impl<Window: WindowMethods> IOCompositor<Window> {
     /// Returns true if any buffer requests were sent or false otherwise.
     fn send_buffer_requests_for_all_layers(&mut self) -> bool {
         let mut layers_and_requests = Vec::new();
-        self.scene.get_buffer_requests(&mut layers_and_requests,
-                                       Rect(TypedPoint2D(0f32, 0f32), self.window_size.as_f32()));
+        let mut unused_buffers = Vec::new();
+        self.scene.get_buffer_requests(&mut layers_and_requests, &mut unused_buffers);
 
         // Return unused tiles first, so that they can be reused by any new BufferRequests.
-        self.send_back_unused_buffers();
+        self.send_back_unused_buffers(unused_buffers);
 
         if layers_and_requests.len() == 0 {
             return false;
@@ -1194,9 +1190,9 @@ impl<Window: WindowMethods> IOCompositor<Window> {
             for y in range(0, height) {
                 let dst_start = y * stride;
                 let src_start = (height - y - 1) * stride;
-                let src_slice = orig_pixels.slice(src_start, src_start + stride);
-                copy_memory(pixels.slice_mut(dst_start, dst_start + stride),
-                            src_slice.slice_to(stride));
+                let src_slice = &orig_pixels[src_start .. src_start + stride];
+                copy_memory(&mut pixels[dst_start .. dst_start + stride],
+                            &src_slice[..stride]);
             }
             let mut img = png::Image {
                 width: width as u32,

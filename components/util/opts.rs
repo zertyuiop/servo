@@ -13,9 +13,9 @@ use layers::geometry::DevicePixel;
 use getopts;
 use std::collections::HashSet;
 use std::cmp;
-use std::io;
+use std::env;
+use std::old_io as io;
 use std::mem;
-use std::os;
 use std::ptr;
 use std::rt;
 
@@ -137,7 +137,7 @@ pub fn print_debug_usage(app: &str)  {
 
 fn args_fail(msg: &str) {
     io::stderr().write_line(msg).unwrap();
-    os::set_exit_status(1);
+    env::set_exit_status(1);
 }
 
 // Always use CPU painting on android.
@@ -219,11 +219,11 @@ pub fn from_cmdline_args(args: &[String]) -> bool {
         return false;
     };
 
-    let mut debug_options = HashSet::new();
     let debug_string = match opt_match.opt_str("Z") {
         Some(string) => string,
         None => String::new()
     };
+    let mut debug_options = HashSet::new();
     for split in debug_string.as_slice().split(',') {
         debug_options.insert(split.clone());
     }

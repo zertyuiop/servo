@@ -18,16 +18,16 @@ use geom::size::Size2D;
 use layers::platform::surface::{NativeCompositingGraphicsContext, NativeGraphicsMetadata};
 use layers::layers::LayerBufferSet;
 use pipeline::CompositionPipeline;
-use servo_msg::compositor_msg::{Epoch, LayerId, LayerMetadata, ReadyState};
-use servo_msg::compositor_msg::{PaintListener, PaintState, ScriptListener, ScrollPolicy};
-use servo_msg::constellation_msg::{ConstellationChan, LoadData, PipelineId};
-use servo_msg::constellation_msg::{Key, KeyState, KeyModifiers};
+use msg::compositor_msg::{Epoch, LayerId, LayerMetadata, ReadyState};
+use msg::compositor_msg::{PaintListener, PaintState, ScriptListener, ScrollPolicy};
+use msg::constellation_msg::{ConstellationChan, LoadData, PipelineId};
+use msg::constellation_msg::{Key, KeyState, KeyModifiers};
 use util::cursor::Cursor;
 use util::geometry::PagePx;
 use util::memory::MemoryProfilerChan;
 use util::time::TimeProfilerChan;
 use std::sync::mpsc::{channel, Sender, Receiver};
-use std::fmt::{Error, Formatter, Show};
+use std::fmt::{Error, Formatter, Debug};
 use std::rc::Rc;
 
 /// Sends messages to the compositor. This is a trait supplied by the port because the method used
@@ -223,7 +223,7 @@ pub enum Msg {
     PaintTaskExited(PipelineId),
 }
 
-impl Show for Msg {
+impl Debug for Msg {
     fn fmt(&self, f: &mut Formatter) -> Result<(),Error> {
         match *self {
             Msg::Exit(..) => write!(f, "Exit"),

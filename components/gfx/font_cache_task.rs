@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{Sender, Receiver, channel};
 use font_template::{FontTemplate, FontTemplateDescriptor};
 use platform::font_template::FontTemplateData;
-use servo_net::resource_task::{ResourceTask, load_whole_resource};
+use net::resource_task::{ResourceTask, load_whole_resource};
 use util::task::spawn_named;
 use util::str::LowercaseString;
 use style::font_face::Source;
@@ -149,7 +149,7 @@ impl FontCache {
                         }
                         Source::Local(ref local_family_name) => {
                             let family = &mut self.web_families[family_name];
-                            get_variations_for_family(local_family_name.as_slice(), |&mut:path| {
+                            get_variations_for_family(local_family_name.as_slice(), |path| {
                                 family.add_template(path.as_slice(), None);
                             });
                         }
@@ -191,7 +191,7 @@ impl FontCache {
             let s = &mut self.local_families[*family_name];
 
             if s.templates.len() == 0 {
-                get_variations_for_family(family_name.as_slice(), |&mut:path| {
+                get_variations_for_family(family_name.as_slice(), |path| {
                     s.add_template(path.as_slice(), None);
                 });
             }

@@ -55,12 +55,12 @@ fn load(load_data: LoadData, start_chan: Sender<TargetedLoadResponse>) {
     let mut ct_str = parts[0];
     if ct_str.ends_with(";base64") {
         is_base64 = true;
-        ct_str = ct_str.slice_to(ct_str.as_bytes().len() - 7);
+        ct_str = &ct_str[..ct_str.as_bytes().len() - 7];
     }
 
     // Parse the content type using rust-http.
     // FIXME: this can go into an infinite loop! (rust-http #25)
-    let content_type: Option<Mime> = ct_str.parse();
+    let content_type: Option<Mime> = ct_str.parse().ok();
     metadata.set_content_type(content_type.as_ref());
 
     let progress_chan = start_sending(senders, metadata);

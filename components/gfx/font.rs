@@ -14,7 +14,6 @@ use style::computed_values::{font_stretch, font_variant, font_weight};
 use style::properties::style_structs::Font as FontStyle;
 use std::sync::Arc;
 
-use std::hash::Hash;
 use platform::font_context::FontContextHandle;
 use platform::font::{FontHandle, FontTable};
 use util::geometry::Au;
@@ -59,7 +58,7 @@ impl FontTableTagConversions for FontTableTag {
     fn tag_to_str(&self) -> String {
         unsafe {
             let pointer = mem::transmute::<&u32, *const u8>(self);
-            let mut bytes = slice::from_raw_buf(&pointer, 4).to_vec();
+            let mut bytes = slice::from_raw_parts(pointer, 4).to_vec();
             bytes.reverse();
             String::from_utf8_unchecked(bytes)
         }
@@ -70,7 +69,7 @@ pub trait FontTableMethods {
     fn with_buffer<F>(&self, F) where F: FnOnce(*const u8, uint);
 }
 
-#[derive(Clone, Show)]
+#[derive(Clone, Debug)]
 pub struct FontMetrics {
     pub underline_size:   Au,
     pub underline_offset: Au,

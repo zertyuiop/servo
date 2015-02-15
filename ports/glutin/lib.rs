@@ -4,10 +4,13 @@
 
 //! A simple application that uses glutin to open a window for Servo to display in.
 
-#![feature(box_syntax, int_uint)]
-#![deny(unused_imports, unused_variables)]
-#![allow(unstable)]
+#![feature(int_uint)]
+#![feature(core)]
+#![cfg_attr(feature = "window", feature(hash))]
+#![feature(box_syntax)]
+#![feature(libc)]
 
+#[macro_use] extern crate bitflags;
 #[cfg(target_os="macos")]
 extern crate cgl;
 extern crate compositing;

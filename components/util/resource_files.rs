@@ -2,16 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-use std::io::{File, IoResult};
-use std::path::Path;
-
-#[cfg(not(target_os = "android"))]
-use opts;
-
-#[cfg(not(target_os = "android"))]
-use std::io::fs::PathExtensions;
-#[cfg(not(target_os = "android"))]
-use std::os;
+use std::old_io::{File, IoResult};
+use std::old_path::Path;
 
 #[cfg(target_os = "android")]
 pub fn resources_dir_path() -> Path {
@@ -20,13 +12,18 @@ pub fn resources_dir_path() -> Path {
 
 #[cfg(not(target_os = "android"))]
 pub fn resources_dir_path() -> Path {
+    use opts;
+    use std::env;
+    use std::old_io::fs::PathExtensions;
+
     match opts::get().resources_path {
         Some(ref path) => Path::new(path),
         None => {
             // FIXME: Find a way to not rely on the executable being
             // under `<servo source>/components/servo/target`
             // or `<servo source>/components/servo/target/release`.
-            let mut path = os::self_exe_path().expect("can't get exe path");
+            let mut path = env::current_exe().ok().expect("can't get exe path");
+            path.pop();
             path.pop();
             path.pop();
             path.pop();

@@ -261,7 +261,7 @@ impl LayoutDataRef {
 unsafe impl Send for LayoutDataRef {}
 
 /// The different types of nodes.
-#[derive(Copy, PartialEq, Show)]
+#[derive(Copy, PartialEq, Debug)]
 #[jstraceable]
 pub enum NodeTypeId {
     DocumentType,
@@ -1020,10 +1020,7 @@ impl RawLayoutNodeHelpers for Node {
 //
 
 pub type ChildElementIterator<'a> =
-    Peekable<JSRef<'a, Element>,
-             FilterMap<JSRef<'a, Node>,
-                       JSRef<'a, Element>,
-                       NodeChildrenIterator<'a>,
+    Peekable<FilterMap<NodeChildrenIterator<'a>,
                        fn(JSRef<Node>) -> Option<JSRef<Element>>>>;
 
 pub struct NodeChildrenIterator<'a> {
@@ -1666,7 +1663,7 @@ impl Node {
         }
     }
 
-    pub fn collect_text_contents<'a, T: Iterator<Item=JSRef<'a, Node>>>(mut iterator: T) -> String {
+    pub fn collect_text_contents<'a, T: Iterator<Item=JSRef<'a, Node>>>(iterator: T) -> String {
         let mut content = String::new();
         for node in iterator {
             let text: Option<JSRef<Text>> = TextCast::to_ref(node);

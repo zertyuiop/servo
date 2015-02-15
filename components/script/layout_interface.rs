@@ -11,7 +11,7 @@ use dom::node::LayoutDataRef;
 use geom::point::Point2D;
 use geom::rect::Rect;
 use script_traits::{ScriptControlChan, OpaqueScriptLayoutChannel, UntrustedNodeAddress};
-use servo_msg::constellation_msg::{PipelineExitType, WindowSizeData};
+use msg::constellation_msg::{PipelineExitType, WindowSizeData};
 use util::geometry::Au;
 use std::any::Any;
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -77,7 +77,7 @@ pub struct HitTestResponse(pub UntrustedNodeAddress);
 pub struct MouseOverResponse(pub Vec<UntrustedNodeAddress>);
 
 /// Why we're doing reflow.
-#[derive(PartialEq, Show)]
+#[derive(PartialEq, Debug)]
 pub enum ReflowGoal {
     /// We're reflowing in order to send a display list to the screen.
     ForDisplay,

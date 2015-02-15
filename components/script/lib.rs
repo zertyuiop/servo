@@ -2,20 +2,30 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#![feature(unsafe_destructor, plugin, box_syntax, int_uint)]
+#![feature(alloc)]
+#![feature(box_syntax)]
+#![feature(collections)]
+#![feature(core)]
+#![feature(hash)]
+#![feature(int_uint)]
+#![feature(io)]
+#![feature(libc)]
+#![feature(plugin)]
+#![feature(rustc_private)]
+#![feature(std_misc)]
+#![feature(unicode)]
+#![feature(unsafe_destructor)]
 
 #![deny(unsafe_blocks)]
-#![deny(unused_imports)]
-#![deny(unused_variables)]
 #![allow(non_snake_case)]
 #![allow(missing_copy_implementations)]
-#![allow(unstable)]
 
 #![doc="The script crate contains all matters DOM."]
 
 #[macro_use]
 extern crate log;
 
+#[macro_use] extern crate bitflags;
 extern crate core;
 extern crate devtools_traits;
 extern crate cssparser;
@@ -28,17 +38,15 @@ extern crate js;
 extern crate libc;
 extern crate msg;
 extern crate net;
-extern crate serialize;
+extern crate "rustc-serialize" as serialize;
 extern crate time;
 extern crate canvas;
 extern crate script_traits;
 #[no_link] #[plugin] #[macro_use]
 extern crate "plugins" as servo_plugins;
-extern crate "net" as servo_net;
 extern crate util;
 #[macro_use]
 extern crate style;
-extern crate "msg" as servo_msg;
 extern crate url;
 extern crate uuid;
 extern crate string_cache;

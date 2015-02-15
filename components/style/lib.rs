@@ -5,13 +5,16 @@
 #![feature(plugin)]
 #![feature(int_uint)]
 #![feature(box_syntax)]
+#![feature(core)]
+#![feature(std_misc)]
+#![feature(hash)]
+#![feature(collections)]
+#![feature(rustc_private)]
 
-#![deny(unused_imports)]
-#![deny(unused_variables)]
 #![allow(missing_copy_implementations)]
-#![allow(unstable)]
 
 #[macro_use] extern crate log;
+#[macro_use] extern crate bitflags;
 #[no_link] #[macro_use] #[plugin] extern crate string_cache_macros;
 
 extern crate collections;

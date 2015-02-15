@@ -2,19 +2,29 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#![feature(unsafe_destructor)]
-#![feature(plugin)]
-#![feature(int_uint)]
+#![feature(alloc)]
 #![feature(box_syntax)]
+#![feature(collections)]
+#![feature(core)]
+#![feature(env)]
+#![feature(hash)]
+#![feature(int_uint)]
+#![feature(io)]
+#![feature(libc)]
+#![feature(optin_builtin_traits)]
+#![feature(path)]
+#![feature(plugin)]
+#![feature(rustc_private)]
+#![feature(std_misc)]
+#![feature(unicode)]
+#![feature(unsafe_destructor)]
 
-#![deny(unused_imports)]
-#![deny(unused_variables)]
 #![allow(missing_copy_implementations)]
-#![allow(unstable)]
 
 #[macro_use] extern crate log;
 
 extern crate alloc;
+#[macro_use] extern crate bitflags;
 extern crate collections;
 extern crate cssparser;
 extern crate geom;

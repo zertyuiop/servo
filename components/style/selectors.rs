@@ -15,14 +15,14 @@ use parser::ParserContext;
 use stylesheets::Origin;
 
 
-#[derive(PartialEq, Clone, Show)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Selector {
     pub compound_selectors: Arc<CompoundSelector>,
     pub pseudo_element: Option<PseudoElement>,
     pub specificity: u32,
 }
 
-#[derive(Eq, PartialEq, Clone, Hash, Copy, Show)]
+#[derive(Eq, PartialEq, Clone, Hash, Copy, Debug)]
 pub enum PseudoElement {
     Before,
     After,
@@ -30,13 +30,13 @@ pub enum PseudoElement {
 }
 
 
-#[derive(PartialEq, Clone, Show)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct CompoundSelector {
     pub simple_selectors: Vec<SimpleSelector>,
     pub next: Option<(Box<CompoundSelector>, Combinator)>,  // c.next is left of c
 }
 
-#[derive(PartialEq, Clone, Copy, Show)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub enum Combinator {
     Child,  //  >
     Descendant,  // space
@@ -44,7 +44,7 @@ pub enum Combinator {
     LaterSibling,  // ~
 }
 
-#[derive(Eq, PartialEq, Clone, Hash, Show)]
+#[derive(Eq, PartialEq, Clone, Hash, Debug)]
 pub enum SimpleSelector {
     ID(Atom),
     Class(Atom),
@@ -84,27 +84,27 @@ pub enum SimpleSelector {
 }
 
 
-#[derive(Eq, PartialEq, Clone, Hash, Copy, Show)]
+#[derive(Eq, PartialEq, Clone, Hash, Copy, Debug)]
 pub enum CaseSensitivity {
     CaseSensitive,  // Selectors spec says language-defined, but HTML says sensitive.
     CaseInsensitive,
 }
 
 
-#[derive(Eq, PartialEq, Clone, Hash, Show)]
+#[derive(Eq, PartialEq, Clone, Hash, Debug)]
 pub struct LocalName {
     pub name: Atom,
     pub lower_name: Atom,
 }
 
-#[derive(Eq, PartialEq, Clone, Hash, Show)]
+#[derive(Eq, PartialEq, Clone, Hash, Debug)]
 pub struct AttrSelector {
     pub name: Atom,
     pub lower_name: Atom,
     pub namespace: NamespaceConstraint,
 }
 
-#[derive(Eq, PartialEq, Clone, Hash, Show)]
+#[derive(Eq, PartialEq, Clone, Hash, Debug)]
 pub enum NamespaceConstraint {
     Any,
     Specific(Namespace),
@@ -125,13 +125,13 @@ fn compute_specificity(mut selector: &CompoundSelector,
     };
     if pseudo_element.is_some() { specificity.element_selectors += 1 }
 
-    simple_selectors_specificity(selector.simple_selectors.as_slice(), &mut specificity);
+    simple_selectors_specificity(&selector.simple_selectors, &mut specificity);
     loop {
         match selector.next {
             None => break,
             Some((ref next_selector, _)) => {
                 selector = &**next_selector;
-                simple_selectors_specificity(selector.simple_selectors.as_slice(), &mut specificity)
+                simple_selectors_specificity(&selector.simple_selectors, &mut specificity)
             }
         }
     }
@@ -169,7 +169,7 @@ fn compute_specificity(mut selector: &CompoundSelector,
                     specificity.class_like_selectors += 1,
                 &SimpleSelector::Namespace(..) => (),
                 &SimpleSelector::Negation(ref negated) =>
-                    simple_selectors_specificity(negated.as_slice(), specificity),
+                    simple_selectors_specificity(negated, specificity),
             }
         }
     }
@@ -270,8 +270,8 @@ fn parse_type_selector(context: &ParserContext, input: &mut Parser)
             match local_name {
                 Some(name) => {
                     simple_selectors.push(SimpleSelector::LocalName(LocalName {
-                        name: Atom::from_slice(name.as_slice()),
-                        lower_name: Atom::from_slice(name.into_owned().into_ascii_lowercase().as_slice())
+                        name: Atom::from_slice(&name),
+                        lower_name: Atom::from_slice(&name.into_owned().into_ascii_lowercase())
                     }))
                 }
                 None => (),
@@ -282,7 +282,7 @@ fn parse_type_selector(context: &ParserContext, input: &mut Parser)
 }
 
 
-#[derive(Show)]
+#[derive(Debug)]
 enum SimpleSelectorParseResult {
     SimpleSelector(SimpleSelector),
     PseudoElement(PseudoElement),
@@ -296,7 +296,7 @@ fn parse_qualified_name<'i, 't>
                        (context: &ParserContext, input: &mut Parser<'i, 't>,
                         in_attr_selector: bool)
                         -> Result<Option<(NamespaceConstraint, Option<CowString<'i>>)>, ()> {
-    let default_namespace = |:local_name| {
+    let default_namespace = |local_name| {
         let namespace = match context.namespaces.default {
             Some(ref ns) => NamespaceConstraint::Specific(ns.clone()),
             None => NamespaceConstraint::Any,
@@ -304,7 +304,7 @@ fn parse_qualified_name<'i, 't>
         Ok(Some((namespace, local_name)))
     };
 
-    let explicit_namespace = |&: input: &mut Parser<'i, 't>, namespace| {
+    let explicit_namespace = |input: &mut Parser<'i, 't>, namespace| {
         match input.next_including_whitespace() {
             Ok(Token::Delim('*')) if !in_attr_selector => {
                 Ok(Some((namespace, None)))
@@ -322,7 +322,7 @@ fn parse_qualified_name<'i, 't>
             let position = input.position();
             match input.next_including_whitespace() {
                 Ok(Token::Delim('|')) => {
-                    let result = context.namespaces.prefix_map.get(value.as_slice());
+                    let result = context.namespaces.prefix_map.get(&*value);
                     let namespace = try!(result.ok_or(()));
                     explicit_namespace(input, NamespaceConstraint::Specific(namespace.clone()))
                 },
@@ -366,8 +366,8 @@ fn parse_attribute_selector(context: &ParserContext, input: &mut Parser)
         Some((_, None)) => unreachable!(),
         Some((namespace, Some(local_name))) => AttrSelector {
             namespace: namespace,
-            lower_name: Atom::from_slice(local_name.as_slice().to_ascii_lowercase().as_slice()),
-            name: Atom::from_slice(local_name.as_slice()),
+            lower_name: Atom::from_slice(&local_name.to_ascii_lowercase()),
+            name: Atom::from_slice(&local_name),
         },
     };
 
@@ -526,13 +526,13 @@ fn parse_one_simple_selector(context: &ParserContext,
     let start_position = input.position();
     match input.next_including_whitespace() {
         Ok(Token::IDHash(id)) => {
-            let id = SimpleSelector::ID(Atom::from_slice(id.as_slice()));
+            let id = SimpleSelector::ID(Atom::from_slice(&id));
             Ok(Some(SimpleSelectorParseResult::SimpleSelector(id)))
         }
         Ok(Token::Delim('.')) => {
             match input.next_including_whitespace() {
                 Ok(Token::Ident(class)) => {
-                    let class = SimpleSelector::Class(Atom::from_slice(class.as_slice()));
+                    let class = SimpleSelector::Class(Atom::from_slice(&class));
                     Ok(Some(SimpleSelectorParseResult::SimpleSelector(class)))
                 }
                 _ => Err(()),
@@ -547,7 +547,7 @@ fn parse_one_simple_selector(context: &ParserContext,
         Ok(Token::Colon) => {
             match input.next_including_whitespace() {
                 Ok(Token::Ident(name)) => {
-                    match parse_simple_pseudo_class(context, name.as_slice()) {
+                    match parse_simple_pseudo_class(context, &name) {
                         Err(()) => {
                             let pseudo_element = match_ignore_ascii_case! { name,
                                 // Supported CSS 2.1 pseudo-elements only.
@@ -564,16 +564,15 @@ fn parse_one_simple_selector(context: &ParserContext,
                     }
                 }
                 Ok(Token::Function(name)) => {
-                    let name = name.as_slice();
                     let pseudo = try!(input.parse_nested_block(|input| {
-                        parse_functional_pseudo_class(context, input, name, inside_negation)
+                        parse_functional_pseudo_class(context, input, &name, inside_negation)
                     }));
                     Ok(Some(SimpleSelectorParseResult::SimpleSelector(pseudo)))
                 }
                 Ok(Token::Colon) => {
                     match input.next() {
                         Ok(Token::Ident(name)) => {
-                            let pseudo = try!(parse_pseudo_element(name.as_slice()));
+                            let pseudo = try!(parse_pseudo_element(&name));
                             Ok(Some(SimpleSelectorParseResult::PseudoElement(pseudo)))
                         }
                         _ => Err(())

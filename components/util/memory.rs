@@ -7,13 +7,12 @@
 use libc::{c_char,c_int,c_void,size_t};
 use std::borrow::ToOwned;
 use std::ffi::CString;
-use std::io::timer::sleep;
+use std::old_io::timer::sleep;
 #[cfg(target_os="linux")]
-use std::io::File;
-use std::mem;
+use std::old_io::File;
 use std::mem::size_of;
 #[cfg(target_os="linux")]
-use std::os::page_size;
+use std::env::page_size;
 use std::ptr::null_mut;
 use std::sync::mpsc::{Sender, channel, Receiver};
 use std::time::duration::Duration;
@@ -112,39 +111,85 @@ impl MemoryProfiler {
         match nbytes {
             Some(nbytes) => {
                 let mebi = 1024f64 * 1024f64;
-                println!("{:16}: {:12.2}", path, (nbytes as f64) / mebi);
+                println!("{:24}: {:12.2}", path, (nbytes as f64) / mebi);
             }
             None => {
-                println!("{:16}: {:>12}", path, "???");
+                println!("{:24}: {:>12}", path, "???");
             }
         }
     }
 
     fn handle_print_msg(&self) {
-        println!("{:16}: {:12}", "_category_", "_size (MiB)_");
+        println!("{:24}: {:12}", "_category_", "_size (MiB)_");
 
         // Virtual and physical memory usage, as reported by the OS.
-        MemoryProfiler::print_measurement("vsize",          get_vsize());
-        MemoryProfiler::print_measurement("resident",       get_resident());
+        MemoryProfiler::print_measurement("vsize", get_vsize());
+        MemoryProfiler::print_measurement("resident", get_resident());
 
-        // The descriptions of the jemalloc measurements are taken directly
-        // from the jemalloc documentation.
+        // Total number of bytes allocated by the application on the system
+        // heap.
+        MemoryProfiler::print_measurement("system-heap-allocated",
+                                          get_system_heap_allocated());
 
-        // Total number of bytes allocated by the application.
-        MemoryProfiler::print_measurement("heap-allocated", get_jemalloc_stat("stats.allocated"));
+        // The descriptions of the following jemalloc measurements are taken
+        // directly from the jemalloc documentation.
 
-        // Total number of bytes in active pages allocated by the application.
+        // "Total number of bytes allocated by the application."
+        MemoryProfiler::print_measurement("jemalloc-heap-allocated",
+                                          get_jemalloc_stat("stats.allocated"));
+
+        // "Total number of bytes in active pages allocated by the application.
         // This is a multiple of the page size, and greater than or equal to
-        // |stats.allocated|.
-        MemoryProfiler::print_measurement("heap-active",    get_jemalloc_stat("stats.active"));
+        // |stats.allocated|."
+        MemoryProfiler::print_measurement("jemalloc-heap-active",
+                                          get_jemalloc_stat("stats.active"));
 
-        // Total number of bytes in chunks mapped on behalf of the application.
+        // "Total number of bytes in chunks mapped on behalf of the application.
         // This is a multiple of the chunk size, and is at least as large as
-        // |stats.active|. This does not include inactive chunks.
-        MemoryProfiler::print_measurement("heap-mapped",    get_jemalloc_stat("stats.mapped"));
+        // |stats.active|. This does not include inactive chunks."
+        MemoryProfiler::print_measurement("jemalloc-heap-mapped",
+                                          get_jemalloc_stat("stats.mapped"));
 
         println!("");
     }
+}
+
+#[cfg(target_os="linux")]
+extern {
+    fn mallinfo() -> struct_mallinfo;
+}
+
+#[cfg(target_os="linux")]
+#[repr(C)]
+pub struct struct_mallinfo {
+    arena:    c_int,
+    ordblks:  c_int,
+    smblks:   c_int,
+    hblks:    c_int,
+    hblkhd:   c_int,
+    usmblks:  c_int,
+    fsmblks:  c_int,
+    uordblks: c_int,
+    fordblks: c_int,
+    keepcost: c_int,
+}
+
+#[cfg(target_os="linux")]
+fn get_system_heap_allocated() -> Option<u64> {
+    let mut info: struct_mallinfo;
+    unsafe {
+        info = mallinfo();
+    }
+    // The documentation in the glibc man page makes it sound like |uordblks|
+    // would suffice, but that only gets the small allocations that are put in
+    // the brk heap. We need |hblkhd| as well to get the larger allocations
+    // that are mmapped.
+    Some((info.hblkhd + info.uordblks) as u64)
+}
+
+#[cfg(not(target_os="linux"))]
+fn get_system_heap_allocated() -> Option<u64> {
+    None
 }
 
 extern {
@@ -152,17 +197,40 @@ extern {
                   newp: *mut c_void, newlen: size_t) -> c_int;
 }
 
-fn get_jemalloc_stat(name: &'static str) -> Option<u64> {
-    let mut old: size_t = 0;
-    let c_name = CString::from_slice(name.as_bytes());
-    let oldp = &mut old as *mut _ as *mut c_void;
-    let mut oldlen = size_of::<size_t>() as size_t;
-    let rv: c_int;
-    unsafe {
-        rv = je_mallctl(c_name.as_ptr(), oldp, &mut oldlen, null_mut(), 0);
-        mem::forget(c_name); // XXX correct?
+fn get_jemalloc_stat(value_name: &str) -> Option<u64> {
+    // Before we request the measurement of interest, we first send an "epoch"
+    // request. Without that jemalloc gives cached statistics(!) which can be
+    // highly inaccurate.
+    let epoch_name = "epoch";
+    let epoch_c_name = CString::from_slice(epoch_name.as_bytes());
+    let mut epoch: u64 = 0;
+    let epoch_ptr = &mut epoch as *mut _ as *mut c_void;
+    let mut epoch_len = size_of::<u64>() as size_t;
+
+    let value_c_name = CString::from_slice(value_name.as_bytes());
+    let mut value: size_t = 0;
+    let value_ptr = &mut value as *mut _ as *mut c_void;
+    let mut value_len = size_of::<size_t>() as size_t;
+
+    // Using the same values for the `old` and `new` parameters is enough
+    // to get the statistics updated.
+    let rv = unsafe {
+        je_mallctl(epoch_c_name.as_ptr(), epoch_ptr, &mut epoch_len, epoch_ptr,
+                   epoch_len)
+    };
+    if rv != 0 {
+        return None;
     }
-    if rv == 0 { Some(old as u64) } else { None }
+
+    let rv = unsafe {
+        je_mallctl(value_c_name.as_ptr(), value_ptr, &mut value_len,
+                   null_mut(), 0)
+    };
+    if rv != 0 {
+        return None;
+    }
+
+    Some(value as u64)
 }
 
 // Like std::macros::try!, but for Option<>.
@@ -176,7 +244,7 @@ fn get_proc_self_statm_field(field: uint) -> Option<u64> {
     match f.read_to_string() {
         Ok(contents) => {
             let s = option_try!(contents.as_slice().words().nth(field));
-            let npages: u64 = option_try!(s.parse());
+            let npages: u64 = option_try!(s.parse().ok());
             Some(npages * (page_size() as u64))
         }
         Err(_) => None

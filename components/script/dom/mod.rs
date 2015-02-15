@@ -67,10 +67,10 @@
 //! (The result of either method can be wrapped in `Result`, if that is
 //! appropriate for the type in question.)
 //!
-//! The latter calls the former, boxes the result, and creates a reflector for
-//! it by calling `dom::bindings::utils::reflect_dom_object` (which yields
-//! ownership of the object to the SpiderMonkey Garbage Collector). This is the
-//! API to use when creating a DOM object.
+//! The latter calls the former, boxes the result, and creates a reflector
+//! corresponding to it by calling `dom::bindings::utils::reflect_dom_object`
+//! (which yields ownership of the object to the SpiderMonkey Garbage Collector).
+//! This is the API to use when creating a DOM object.
 //!
 //! The former should only be called by the latter, and by subclasses'
 //! `new_inherited` methods.
@@ -98,9 +98,11 @@
 //! =============================
 //!
 //! Every DOM object has a `Reflector` as its first (transitive) member field.
-//! This contains a `*mut JSObject` that points to its reflector. This field
-//! is initialized by the `FooBinding::Wrap` method, called from
-//! `reflect_dom_object`.
+//! This contains a `*mut JSObject` that points to its reflector.
+//!
+//! The `FooBinding::Wrap` function creates the reflector, stores a pointer to
+//! the DOM object in the reflector, and initializes the pointer to the reflector
+//! in the `Reflector` field.
 //!
 //! The `Reflectable` trait provides a `reflector()` method that returns the
 //! DOM object's `Reflector`. It is implemented automatically for DOM structs
@@ -155,6 +157,20 @@
 //!     let derived: Option<JSRef<HTMLElement>> = HTMLElementCast::to_ref(element);
 //! }
 //! ```
+//!
+//! Adding a new DOM interface
+//! ==========================
+//!
+//! Adding a new interface `Foo` requires at least the following:
+//!
+//! * adding the new IDL file at `components/script/dom/webidls/Foo.webidl`;
+//! * creating `components/script/dom/foo.rs`;
+//! * listing `foo.rs` in components/script/dom/mod.rs`;
+//! * defining the DOM struct `Foo` with a `#[dom_struct]` attribute, a
+//!   superclass or `Reflector` member, and other members as appropriate;
+//! * implementing the
+//!   `dom::bindings::codegen::Bindings::FooBindings::FooMethods` trait for
+//!   `JSRef<Foo>`.
 //!
 //! Accessing DOM objects from layout
 //! =================================

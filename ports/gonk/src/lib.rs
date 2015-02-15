@@ -2,25 +2,23 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#![feature(macro_rules, phase, thread_local)]
-
-#![deny(unused_imports)]
-#![deny(unused_variables)]
+#![feature(thread_local)]
+#![feature(box_syntax)]
+#![feature(int_uint)]
 
 #[macro_use]
 extern crate log;
 
 extern crate compositing;
 extern crate devtools;
-extern crate "net" as servo_net;
-extern crate "msg" as servo_msg;
+extern crate net;
+extern crate msg;
 #[macro_use]
 extern crate util;
 extern crate script;
 extern crate layout;
 extern crate gfx;
 extern crate libc;
-extern crate rustrt;
 extern crate url;
 
 use compositing::CompositorEventListener;
@@ -29,18 +27,18 @@ use compositing::windowing::{WindowEvent, WindowMethods};
 #[cfg(not(test))]
 use compositing::{CompositorProxy, CompositorTask, Constellation};
 #[cfg(not(test))]
-use servo_msg::constellation_msg::Msg as ConstellationMsg;
+use msg::constellation_msg::Msg as ConstellationMsg;
 #[cfg(not(test))]
-use servo_msg::constellation_msg::ConstellationChan;
+use msg::constellation_msg::ConstellationChan;
 #[cfg(not(test))]
 use script::dom::bindings::codegen::RegisterBindings;
 
 #[cfg(not(test))]
-use servo_net::image_cache_task::ImageCacheTask;
+use net::image_cache_task::ImageCacheTask;
 #[cfg(not(test))]
-use servo_net::storage_task::StorageTaskFactory;
+use net::storage_task::StorageTaskFactory;
 #[cfg(not(test))]
-use servo_net::resource_task::new_resource_task;
+use net::resource_task::new_resource_task;
 #[cfg(not(test))]
 use gfx::font_cache_task::FontCacheTask;
 #[cfg(not(test))]
@@ -57,7 +55,9 @@ use std::os;
 #[cfg(not(test))]
 use std::rc::Rc;
 #[cfg(not(test))]
-use std::task::TaskBuilder;
+use std::thread::Builder;
+#[cfg(not(test))]
+use std::sync::mpsc::channel;
 
 pub struct Browser<Window> {
     compositor: Box<CompositorEventListener + 'static>,
@@ -85,8 +85,8 @@ impl<Window> Browser<Window> where Window: WindowMethods + 'static {
 
         let (result_chan, result_port) = channel();
         let compositor_proxy_for_constellation = compositor_proxy.clone_compositor_proxy();
-        TaskBuilder::new()
-            .spawn(proc() {
+        Builder::new()
+            .spawn(move || {
             let opts = &opts_clone;
             // Create a Servo instance.
             let resource_task = new_resource_task(opts.user_agent.clone());
@@ -128,7 +128,7 @@ impl<Window> Browser<Window> where Window: WindowMethods + 'static {
             result_chan.send(constellation_chan);
         });
 
-        let constellation_chan = result_port.recv();
+        let constellation_chan = result_port.recv().unwrap();
 
         debug!("preparing to enter main loop");
         let compositor = CompositorTask::create(window,

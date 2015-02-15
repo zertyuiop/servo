@@ -9,7 +9,7 @@
 use std::ascii::AsciiExt;
 use std::borrow::ToOwned;
 use std::fmt;
-use std::fmt::Show;
+use std::fmt::Debug;
 use std::sync::Arc;
 
 use util::logical_geometry::{WritingMode, LogicalMargin};
@@ -487,10 +487,10 @@ pub mod longhands {
                     Ok(SpecifiedValue::Percentage(value.unit_value))
                 }
                 Token::Dimension(ref value, ref unit) if value.value >= 0. => {
-                    specified::Length::parse_dimension(value.value, unit.as_slice())
+                    specified::Length::parse_dimension(value.value, unit)
                     .map(SpecifiedValue::Length)
                 }
-                Token::Ident(ref value) if value.as_slice().eq_ignore_ascii_case("normal") => {
+                Token::Ident(ref value) if value.eq_ignore_ascii_case("normal") => {
                     Ok(SpecifiedValue::Normal)
                 }
                 _ => Err(()),
@@ -506,7 +506,7 @@ pub mod longhands {
                 Length(Au),
                 Number(CSSFloat),
             }
-            impl fmt::Show for T {
+            impl fmt::Debug for T {
                 fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                     match self {
                         &T::Normal => write!(f, "normal"),
@@ -594,7 +594,7 @@ pub mod longhands {
                 Length(Au),
                 Percentage(CSSFloat),
             }
-            impl fmt::Show for T {
+            impl fmt::Debug for T {
                 fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                     match self {
                         % for keyword in vertical_align_keywords:
@@ -781,7 +781,7 @@ pub mod longhands {
             if input.try(|input| input.expect_ident_matching("none")).is_ok() {
                 Ok(SpecifiedValue::None)
             } else {
-                Ok(SpecifiedValue::Url(context.parse_url(try!(input.expect_url()).as_slice())))
+                Ok(SpecifiedValue::Url(context.parse_url(&*try!(input.expect_url()))))
             }
         }
         #[inline]
@@ -988,7 +988,7 @@ pub mod longhands {
             impl FontFamily {
                 pub fn name(&self) -> &str {
                     match *self {
-                        FontFamily::FamilyName(ref name) => name.as_slice(),
+                        FontFamily::FamilyName(ref name) => name,
                     }
                 }
             }
@@ -1040,7 +1040,7 @@ pub mod longhands {
             let mut value = first_ident.into_owned();
             while let Ok(ident) = input.try(|input| input.expect_ident()) {
                 value.push_str(" ");
-                value.push_str(ident.as_slice());
+                value.push_str(&ident);
             }
             Ok(FontFamily::FamilyName(value))
         }
@@ -1107,7 +1107,7 @@ pub mod longhands {
                     Weight${weight},
                 % endfor
             }
-            impl fmt::Show for T {
+            impl fmt::Debug for T {
                 fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                     match self {
                         % for weight in range(100, 901, 100):
@@ -1529,7 +1529,7 @@ pub mod longhands {
             use text_writer::{self, TextWriter};
             use util::cursor::Cursor;
 
-            #[derive(Clone, PartialEq, Eq, Copy, Show)]
+            #[derive(Clone, PartialEq, Eq, Copy, Debug)]
             pub enum T {
                 AutoCursor,
                 SpecifiedCursor(Cursor),
@@ -1555,7 +1555,7 @@ pub mod longhands {
             if ident.eq_ignore_ascii_case("auto") {
                 Ok(SpecifiedValue::AutoCursor)
             } else {
-                util_cursor::Cursor::from_css_keyword(ident.as_slice())
+                util_cursor::Cursor::from_css_keyword(&ident)
                 .map(SpecifiedValue::SpecifiedCursor)
             }
         }
@@ -1667,7 +1667,7 @@ pub mod longhands {
                 pub inset: bool,
             }
 
-            impl fmt::Show for BoxShadow {
+            impl fmt::Debug for BoxShadow {
                 fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                     if self.inset {
                         let _ = write!(f, "inset ");
@@ -1781,7 +1781,7 @@ pub mod longhands {
         pub mod computed_value {
             use util::geometry::Au;
 
-            #[derive(Clone, PartialEq, Eq, Copy, Show)]
+            #[derive(Clone, PartialEq, Eq, Copy, Debug)]
             pub struct ClipRect {
                 pub top: Au,
                 pub right: Option<Au>,
@@ -1792,7 +1792,7 @@ pub mod longhands {
             pub type T = Option<ClipRect>;
         }
 
-        #[derive(Clone, Show, PartialEq, Copy)]
+        #[derive(Clone, Debug, PartialEq, Copy)]
         pub struct SpecifiedClipRect {
             pub top: specified::Length,
             pub right: Option<specified::Length>,
@@ -1901,7 +1901,7 @@ pub mod longhands {
             use text_writer::{self, TextWriter};
 
             // TODO(pcwalton): `blur`, `drop-shadow`
-            #[derive(Clone, PartialEq, Show)]
+            #[derive(Clone, PartialEq, Debug)]
             pub enum Filter {
                 Brightness(CSSFloat),
                 Contrast(CSSFloat),
@@ -1933,7 +1933,7 @@ pub mod longhands {
                 }
             }
 
-            #[derive(Clone, PartialEq, Show)]
+            #[derive(Clone, PartialEq, Debug)]
             pub struct T {
                 pub filters: Vec<Filter>,
             }
@@ -2548,7 +2548,7 @@ mod property_bit_field {
 
 /// Declarations are stored in reverse order.
 /// Overridden declarations are skipped.
-#[derive(Show, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct PropertyDeclarationBlock {
     pub important: Arc<Vec<PropertyDeclaration>>,
     pub normal: Arc<Vec<PropertyDeclaration>>,
@@ -2600,15 +2600,16 @@ pub fn parse_property_declaration_list(context: &ParserContext, input: &mut Pars
         match declaration {
             Ok((results, important)) => {
                 if important {
-                    important_declarations.push_all(results.as_slice());
+                    important_declarations.push_all(&results);
                 } else {
-                    normal_declarations.push_all(results.as_slice());
+                    normal_declarations.push_all(&results);
                 }
             }
             Err(range) => {
+                let pos = range.start;
                 let message = format!("Unsupported property declaration: '{}'",
                                       iter.input.slice(range));
-                log_css_error(iter.input, range.start, &*message);
+                log_css_error(iter.input, pos, &*message);
             }
         }
     }
@@ -2646,7 +2647,7 @@ fn deduplicate_property_declarations(declarations: Vec<PropertyDeclaration>)
 }
 
 
-#[derive(Copy, PartialEq, Eq, Show)]
+#[derive(Copy, PartialEq, Eq, Debug)]
 pub enum CSSWideKeyword {
     InitialKeyword,
     InheritKeyword,
@@ -2665,7 +2666,7 @@ impl CSSWideKeyword {
 }
 
 
-#[derive(Clone, PartialEq, Eq, Copy, Show)]
+#[derive(Clone, PartialEq, Eq, Copy, Debug)]
 pub enum DeclaredValue<T> {
     SpecifiedValue(T),
     Initial,
@@ -2726,11 +2727,12 @@ impl PropertyDeclaration {
     }
 
     pub fn matches(&self, name: &str) -> bool {
-        let name_lower = name.as_slice().to_ascii_lowercase();
-        match (self, name_lower.as_slice()) {
+        match *self {
             % for property in LONGHANDS:
                 % if property.derived_from is None:
-                    (&PropertyDeclaration::${property.camel_case}(..), "${property.name}") => true,
+                    PropertyDeclaration::${property.camel_case}(..) => {
+                        name.eq_ignore_ascii_case("${property.name}")
+                    }
                 % endif
             % endfor
             _ => false,
@@ -2813,7 +2815,7 @@ impl PropertyDeclaration {
     }
 }
 
-impl Show for PropertyDeclaration {
+impl Debug for PropertyDeclaration {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}: {}", self.name(), self.value())
     }

@@ -2,20 +2,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#![feature(thread_local)]
+#![feature(core, env, libc, path, rustc_private, std_misc, thread_local)]
 
-#![deny(unused_imports)]
-#![deny(unused_variables)]
 #![allow(missing_copy_implementations)]
-#![allow(unstable)]
 
 #[macro_use]
 extern crate log;
 
 extern crate compositing;
 extern crate devtools;
-extern crate "net" as servo_net;
-extern crate "msg" as servo_msg;
+extern crate net;
+extern crate msg;
 #[macro_use]
 extern crate util;
 extern crate script;
@@ -30,18 +27,18 @@ use compositing::windowing::{WindowEvent, WindowMethods};
 #[cfg(not(test))]
 use compositing::{CompositorProxy, CompositorTask, Constellation};
 #[cfg(not(test))]
-use servo_msg::constellation_msg::Msg as ConstellationMsg;
+use msg::constellation_msg::Msg as ConstellationMsg;
 #[cfg(not(test))]
-use servo_msg::constellation_msg::ConstellationChan;
+use msg::constellation_msg::ConstellationChan;
 #[cfg(not(test))]
 use script::dom::bindings::codegen::RegisterBindings;
 
 #[cfg(not(test))]
-use servo_net::image_cache_task::ImageCacheTask;
+use net::image_cache_task::ImageCacheTask;
 #[cfg(not(test))]
-use servo_net::resource_task::new_resource_task;
+use net::resource_task::new_resource_task;
 #[cfg(not(test))]
-use servo_net::storage_task::{StorageTaskFactory, StorageTask};
+use net::storage_task::{StorageTaskFactory, StorageTask};
 #[cfg(not(test))]
 use gfx::font_cache_task::FontCacheTask;
 #[cfg(not(test))]
@@ -53,8 +50,6 @@ use util::opts;
 #[cfg(not(test))]
 use util::taskpool::TaskPool;
 
-#[cfg(not(test))]
-use std::os;
 #[cfg(not(test))]
 use std::rc::Rc;
 #[cfg(not(test))]
@@ -69,6 +64,8 @@ pub struct Browser<Window> {
 impl<Window> Browser<Window> where Window: WindowMethods + 'static {
     #[cfg(not(test))]
     pub fn new(window: Option<Rc<Window>>) -> Browser<Window> {
+        use std::env;
+
         ::util::opts::set_experimental_enabled(opts::get().enable_experimental);
         let opts = opts::get();
         RegisterBindings::RegisterProxyHandlers();
@@ -114,12 +111,12 @@ impl<Window> Browser<Window> where Window: WindowMethods + 'static {
                                                           storage_task);
 
             // Send the URL command to the constellation.
-            let cwd = os::getcwd().unwrap();
+            let cwd = env::current_dir().unwrap();
             for url in opts.urls.iter() {
-                let url = match url::Url::parse(url.as_slice()) {
+                let url = match url::Url::parse(&*url) {
                     Ok(url) => url,
                     Err(url::ParseError::RelativeUrlWithoutBase)
-                    => url::Url::from_file_path(&cwd.join(url.as_slice())).unwrap(),
+                    => url::Url::from_file_path(&cwd.join(&*url)).unwrap(),
                     Err(_) => panic!("URL parsing failed"),
                 };
 

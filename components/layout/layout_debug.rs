@@ -13,12 +13,12 @@ use serialize::json;
 
 use std::borrow::ToOwned;
 use std::cell::RefCell;
-use std::io::File;
-use std::sync::atomic::{AtomicUint, Ordering, ATOMIC_UINT_INIT};
+use std::old_io::File;
+use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 
 thread_local!(static STATE_KEY: RefCell<Option<State>> = RefCell::new(None));
 
-static mut DEBUG_ID_COUNTER: AtomicUint = ATOMIC_UINT_INIT;
+static mut DEBUG_ID_COUNTER: AtomicUsize = ATOMIC_USIZE_INIT;
 
 pub struct Scope;
 
@@ -64,7 +64,7 @@ impl Scope {
         STATE_KEY.with(|ref r| {
             match &mut *r.borrow_mut() {
                 &mut Some(ref mut state) => {
-                    let flow_trace = json::encode(&flow::base(&*state.flow_root));
+                    let flow_trace = json::encode(&flow::base(&*state.flow_root)).unwrap();
                     let data = box ScopeData::new(name.clone(), flow_trace);
                     state.scope_stack.push(data);
                 }
@@ -82,7 +82,7 @@ impl Drop for Scope {
             match &mut *r.borrow_mut() {
                 &mut Some(ref mut state) => {
                     let mut current_scope = state.scope_stack.pop().unwrap();
-                    current_scope.post = json::encode(&flow::base(&*state.flow_root));
+                    current_scope.post = json::encode(&flow::base(&*state.flow_root)).unwrap();
                     let previous_scope = state.scope_stack.last_mut().unwrap();
                     previous_scope.children.push(current_scope);
                 }
@@ -95,6 +95,7 @@ impl Drop for Scope {
 /// Generate a unique ID. This is used for items such as Fragment
 /// which are often reallocated but represent essentially the
 /// same data.
+#[allow(unsafe_blocks)]
 pub fn generate_unique_debug_id() -> u16 {
     unsafe { DEBUG_ID_COUNTER.fetch_add(1, Ordering::SeqCst) as u16 }
 }
@@ -105,7 +106,7 @@ pub fn begin_trace(flow_root: FlowRef) {
     assert!(STATE_KEY.with(|ref r| r.borrow().is_none()));
 
     STATE_KEY.with(|ref r| {
-        let flow_trace = json::encode(&flow::base(&*flow_root));
+        let flow_trace = json::encode(&flow::base(&*flow_root)).unwrap();
         let state = State {
             scope_stack: vec![box ScopeData::new("root".to_owned(), flow_trace)],
             flow_root: flow_root.clone(),
@@ -121,9 +122,9 @@ pub fn end_trace() {
     let mut task_state = STATE_KEY.with(|ref r| r.borrow_mut().take().unwrap());
     assert!(task_state.scope_stack.len() == 1);
     let mut root_scope = task_state.scope_stack.pop().unwrap();
-    root_scope.post = json::encode(&flow::base(&*task_state.flow_root));
+    root_scope.post = json::encode(&flow::base(&*task_state.flow_root)).unwrap();
 
-    let result = json::encode(&root_scope);
+    let result = json::encode(&root_scope).unwrap();
     let path = Path::new("layout_trace.json");
     let mut file = File::create(&path).unwrap();
     file.write_str(result.as_slice()).unwrap();

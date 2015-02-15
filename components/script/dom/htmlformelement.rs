@@ -23,9 +23,9 @@ use dom::htmlbuttonelement::{HTMLButtonElement};
 use dom::htmltextareaelement::{HTMLTextAreaElement, HTMLTextAreaElementHelpers};
 use dom::node::{Node, NodeHelpers, NodeTypeId, document_from_node, window_from_node};
 use hyper::method::Method;
-use hyper::header::common::ContentType;
+use hyper::header::ContentType;
 use hyper::mime;
-use servo_msg::constellation_msg::LoadData;
+use msg::constellation_msg::LoadData;
 use util::str::DOMString;
 use script_task::{ScriptChan, ScriptMsg};
 use std::ascii::OwnedAsciiExt;
@@ -332,7 +332,7 @@ impl<'a> HTMLFormElementHelpers for JSRef<'a, HTMLFormElement> {
         // TODO: Handle `dirnames` (needs directionality support)
         //       https://html.spec.whatwg.org/multipage/dom.html#the-directionality
         let mut ret: Vec<FormDatum> = data_set.collect();
-        for mut datum in ret.iter_mut() {
+        for datum in ret.iter_mut() {
             match datum.ty.as_slice() {
                 "file" | "textarea" => (),
                 _ => {

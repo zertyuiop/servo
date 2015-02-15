@@ -49,7 +49,7 @@ use wrapper::ThreadSafeLayoutNode;
 use geom::{Point2D, Rect, Size2D};
 use gfx::display_list::ClippingRegion;
 use serialize::{Encoder, Encodable};
-use servo_msg::compositor_msg::LayerId;
+use msg::compositor_msg::LayerId;
 use servo_util::geometry::{Au, ZERO_RECT};
 use servo_util::logical_geometry::{LogicalRect, LogicalSize, WritingMode};
 use std::mem;
@@ -67,7 +67,7 @@ use std::sync::Arc;
 ///
 /// Note that virtual methods have a cost; we should not overuse them in Servo. Consider adding
 /// methods to `ImmutableFlowUtils` or `MutableFlowUtils` before adding more methods here.
-pub trait Flow: fmt::Show + Sync {
+pub trait Flow: fmt::Debug + Sync {
     // RTTI
     //
     // TODO(pcwalton): Use Rust's RTTI, once that works.
@@ -294,6 +294,7 @@ pub trait Flow: fmt::Show + Sync {
     }
 
     /// Returns a layer ID for the given fragment.
+    #[allow(unsafe_blocks)]
     fn layer_id(&self, fragment_id: uint) -> LayerId {
         unsafe {
             let obj = mem::transmute::<&&Self, &raw::TraitObject>(&self);
@@ -310,6 +311,7 @@ pub trait Flow: fmt::Show + Sync {
 // Base access
 
 #[inline(always)]
+#[allow(unsafe_blocks)]
 pub fn base<'a, T: ?Sized + Flow>(this: &'a T) -> &'a BaseFlow {
     unsafe {
         let obj = mem::transmute::<&&'a T, &'a raw::TraitObject>(&this);
@@ -323,6 +325,7 @@ pub fn imm_child_iter<'a>(flow: &'a Flow) -> FlowListIterator<'a> {
 }
 
 #[inline(always)]
+#[allow(unsafe_blocks)]
 pub fn mut_base<'a, T: ?Sized + Flow>(this: &'a mut T) -> &'a mut BaseFlow {
     unsafe {
         let obj = mem::transmute::<&&'a mut T, &'a raw::TraitObject>(&this);
@@ -425,7 +428,7 @@ pub trait MutableOwnedFlowUtils {
     fn set_absolute_descendants(&mut self, abs_descendants: AbsDescendants);
 }
 
-#[derive(RustcEncodable, PartialEq, Show)]
+#[derive(RustcEncodable, PartialEq, Debug)]
 pub enum FlowClass {
     Block,
     Inline,
@@ -635,16 +638,16 @@ impl Descendants {
     /// Return an iterator over the descendant flows.
     pub fn iter<'a>(&'a mut self) -> DescendantIter<'a> {
         DescendantIter {
-            iter: self.descendant_links.slice_from_mut(0).iter_mut(),
+            iter: self.descendant_links.iter_mut(),
         }
     }
 
     /// Return an iterator over (descendant, static y offset).
     pub fn iter_with_offset<'a>(&'a mut self) -> DescendantOffsetIter<'a> {
         let descendant_iter = DescendantIter {
-            iter: self.descendant_links.slice_from_mut(0).iter_mut(),
+            iter: self.descendant_links.iter_mut(),
         };
-        descendant_iter.zip(self.static_block_offsets.slice_from_mut(0).iter_mut())
+        descendant_iter.zip(self.static_block_offsets.iter_mut())
     }
 }
 
@@ -781,7 +784,7 @@ pub struct BaseFlow {
 unsafe impl Send for BaseFlow {}
 unsafe impl Sync for BaseFlow {}
 
-impl fmt::Show for BaseFlow {
+impl fmt::Debug for BaseFlow {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
                "@ {:?}, CC {}, ADC {}",

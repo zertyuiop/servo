@@ -20,30 +20,30 @@ pub fn iter_font_face_rules_inner<F>(rules: &[CSSRule], device: &Device,
             CSSRule::Charset(..) |
             CSSRule::Namespace(..) => {},
             CSSRule::Media(ref rule) => if rule.media_queries.evaluate(device) {
-                iter_font_face_rules_inner(rule.rules.as_slice(), device, callback)
+                iter_font_face_rules_inner(&rule.rules, device, callback)
             },
             CSSRule::FontFace(ref rule) => {
                 for source in rule.sources.iter() {
-                    callback(rule.family.as_slice(), source)
+                    callback(&rule.family, source)
                 }
             },
         }
     }
 }
 
-#[derive(Clone, Show, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Source {
     Url(UrlSource),
     Local(String),
 }
 
-#[derive(Clone, Show, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UrlSource {
     pub url: Url,
     pub format_hints: Vec<String>,
 }
 
-#[derive(Show, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct FontFaceRule {
     pub family: String,
     pub sources: Vec<Source>,
@@ -58,9 +58,10 @@ pub fn parse_font_face_block(context: &ParserContext, input: &mut Parser)
     while let Some(declaration) = iter.next() {
         match declaration {
             Err(range) => {
+                let pos = range.start;
                 let message = format!("Unsupported @font-face descriptor declaration: '{}'",
                                       iter.input.slice(range));
-                log_css_error(iter.input, range.start, &*message);
+                log_css_error(iter.input, pos, &*message);
             }
             Ok(FontFaceDescriptorDeclaration::Family(value)) => {
                 family = Some(value);
@@ -129,7 +130,7 @@ fn parse_one_src(context: &ParserContext, input: &mut Parser) -> Result<Source, 
     let url = match input.next() {
         // Parsing url()
         Ok(Token::Url(url)) => {
-            UrlParser::new().base_url(context.base_url).parse(url.as_slice()).unwrap_or_else(
+            UrlParser::new().base_url(context.base_url).parse(&url).unwrap_or_else(
                 |_error| Url::parse("about:invalid").unwrap())
         },
         // Parsing local() with early return

@@ -11,11 +11,11 @@ use geom::scale_factor::ScaleFactor;
 use geom::size::TypedSize2D;
 use layers::geometry::DevicePixel;
 use layers::platform::surface::NativeGraphicsMetadata;
-use servo_msg::compositor_msg::{PaintState, ReadyState};
-use servo_msg::constellation_msg::{Key, KeyState, KeyModifiers, LoadData};
+use msg::compositor_msg::{PaintState, ReadyState};
+use msg::constellation_msg::{Key, KeyState, KeyModifiers, LoadData};
 use util::cursor::Cursor;
 use util::geometry::ScreenPx;
-use std::fmt::{Error, Formatter, Show};
+use std::fmt::{Error, Formatter, Debug};
 use std::rc::Rc;
 
 #[derive(Clone)]
@@ -70,7 +70,7 @@ pub enum WindowEvent {
     KeyEvent(Key, KeyState, KeyModifiers),
 }
 
-impl Show for WindowEvent {
+impl Debug for WindowEvent {
     fn fmt(&self, f: &mut Formatter) -> Result<(),Error> {
         match *self {
             WindowEvent::Idle => write!(f, "Idle"),

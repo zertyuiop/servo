@@ -2,14 +2,14 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#![feature(hash)]
 #![feature(int_uint)]
+#![feature(rustc_private)]
 
-#![deny(unused_imports)]
-#![deny(unused_variables)]
 #![allow(missing_copy_implementations)]
-#![allow(unstable)]
 
 extern crate azure;
+#[macro_use] extern crate bitflags;
 extern crate geom;
 extern crate hyper;
 extern crate layers;
